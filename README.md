@@ -7,21 +7,35 @@ Python bindings for LMGC90 discrete element solver.
 ### Linux
 
 ```bash
+# Install dependencies
 sudo apt update
 sudo apt install -y gfortran libopenblas-dev liblapack-dev cmake
+
+# Clone and install
+git clone https://github.com/BlockResearchGroup/compas_lmgc90.git
+cd compas_lmgc90
+conda create -n lmgc90 python=3.12 -y
+conda activate lmgc90
+conda install -c conda-forge libstdcxx-ng=14
+pip install -r requirements-dev.txt
+pip install --no-build-isolation -ve .
 ```
 
-### Mac
+**Note:** The `libstdcxx-ng=14` is required because the module is compiled with GCC 13.3+ and needs GLIBCXX_3.4.32.
+
+### macOS
 
 ```bash
+# Install dependencies
 brew install gcc openblas cmake
+
+# Clone and install
 git clone https://github.com/BlockResearchGroup/compas_lmgc90.git
 cd compas_lmgc90
 conda create -n lmgc90 python=3.12 -y
 conda activate lmgc90
 pip install -r requirements-dev.txt
 pip install --no-build-isolation -ve .
-python temp/contacts.py
 ```
 
 **Note:** CMake will auto-detect Homebrew GCC/gfortran. If detection fails, set compilers manually:
@@ -33,31 +47,34 @@ export CXX=$(brew --prefix gcc)/bin/g++-14
 
 ### Windows
 
-Windows is not currently supported. The package requires Fortran compilers and POSIX-style build tools. OneAPI can offer that.
+Windows is not currently supported. The package requires Fortran compilers and POSIX-style build tools.
 
-### Package itself
+## Usage
 
-```bash
-git clone https://github.com/BlockResearchGroup/compas_lmgc90.git
-cd compas_lmgc90
-sudo apt-get update
-sudo apt-get install -y gfortran cmake libopenblas-dev liblapack-dev
-conda remove -n lmgc90 --all -y
-conda create -n lmgc90 python=3.12 -y
-conda install -n lmgc90 -y -c conda-forge libstdcxx-ng=14
-conda activate lmgc90
-pip install -r requirements-dev.txt
-pip install --no-build-isolation -ve.
-python temp/contacts.py
+```python
+from compas_dem.models import BlockModel
+from compas_dem.templates import ArchTemplate
+from compas_lmgc90.solver import Solver
+
+# Create model
+template = ArchTemplate(rise=3, span=10, thickness=0.5, depth=0.5, n=20)
+model = BlockModel.from_boxes(template.blocks())
+
+# Run simulation
+solver = Solver(model)
+solver.set_supports(z_threshold=0.4)
+solver.preprocess()
+solver.run(nb_steps=100)
+solver.finalize()
 ```
 
-**Note:** The `libstdcxx-ng=14` installation is required because the module is compiled with GCC 13.3+ and needs GLIBCXX_3.4.32.
-
-
-## Run Example
+## Examples
 
 ```bash
 python temp/dem_of_an_arch.py
+python temp/dem_of_a_wall.py
+python temp/dem_of_a_dome.py
+python temp/contacts.py
 ```
 
 ## Troubleshooting
@@ -66,9 +83,19 @@ python temp/dem_of_an_arch.py
 
 Make sure you installed the package with `pip install -e .` in the correct conda environment. The LMGC90 libraries are bundled during installation.
 
-### GLIBCXX version error
+### GLIBCXX version error (Linux)
 
 Install the required libstdc++:
 ```bash
-conda install -n lmgc90 -y -c conda-forge libstdcxx-ng=14
+conda install -c conda-forge libstdcxx-ng=14
+```
+
+### macOS: Compiler not found
+
+If CMake can't find gfortran, manually set the compilers before building:
+```bash
+export FC=$(brew --prefix gcc)/bin/gfortran-14
+export CC=$(brew --prefix gcc)/bin/gcc-14
+export CXX=$(brew --prefix gcc)/bin/g++-14
+pip install --no-build-isolation -ve .
 ```
