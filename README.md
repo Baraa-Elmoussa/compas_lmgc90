@@ -15,19 +15,6 @@ sudo apt install -y gfortran libopenblas-dev liblapack-dev cmake
 
 ```bash
 brew install gcc openblas cmake
-```
-
-Set compilers to use Homebrew GCC (Apple clang doesn't include gfortran):
-
-```bash
-export FC=$(brew --prefix gcc)/bin/gfortran-14
-export CC=$(brew --prefix gcc)/bin/gcc-14
-export CXX=$(brew --prefix gcc)/bin/g++-14
-```
-
-Then install the package:
-
-```bash
 git clone https://github.com/BlockResearchGroup/compas_lmgc90.git
 cd compas_lmgc90
 conda create -n lmgc90 python=3.12 -y
@@ -37,7 +24,12 @@ pip install --no-build-isolation -ve .
 python temp/contacts.py
 ```
 
-**Note:** Check your GCC version with `brew info gcc` and adjust the version number (e.g., `gfortran-14`) accordingly.
+**Note:** CMake will auto-detect Homebrew GCC/gfortran. If detection fails, set compilers manually:
+```bash
+export FC=$(brew --prefix gcc)/bin/gfortran-14
+export CC=$(brew --prefix gcc)/bin/gcc-14  
+export CXX=$(brew --prefix gcc)/bin/g++-14
+```
 
 ### Windows
 

@@ -1,4 +1,33 @@
 cmake_minimum_required(VERSION 3.15)
+
+# ===================================================================
+# macOS: Auto-detect Homebrew GCC/gfortran before project()
+# ===================================================================
+if(APPLE AND NOT DEFINED CMAKE_C_COMPILER)
+    # Find Homebrew prefix
+    execute_process(
+        COMMAND brew --prefix gcc
+        OUTPUT_VARIABLE HOMEBREW_GCC_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(HOMEBREW_GCC_PREFIX)
+        # Find the latest gfortran version
+        file(GLOB GFORTRAN_VERSIONS "${HOMEBREW_GCC_PREFIX}/bin/gfortran-*")
+        if(GFORTRAN_VERSIONS)
+            list(SORT GFORTRAN_VERSIONS)
+            list(GET GFORTRAN_VERSIONS -1 GFORTRAN_PATH)
+            get_filename_component(GFORTRAN_NAME ${GFORTRAN_PATH} NAME)
+            string(REGEX REPLACE "gfortran-" "" GCC_VERSION "${GFORTRAN_NAME}")
+            
+            set(CMAKE_C_COMPILER "${HOMEBREW_GCC_PREFIX}/bin/gcc-${GCC_VERSION}" CACHE STRING "")
+            set(CMAKE_CXX_COMPILER "${HOMEBREW_GCC_PREFIX}/bin/g++-${GCC_VERSION}" CACHE STRING "")
+            set(CMAKE_Fortran_COMPILER "${HOMEBREW_GCC_PREFIX}/bin/gfortran-${GCC_VERSION}" CACHE STRING "")
+            message(STATUS "macOS: Auto-detected Homebrew GCC ${GCC_VERSION}")
+        endif()
+    endif()
+endif()
+
 project(compas_lmgc90 LANGUAGES CXX Fortran C)
 
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -15,10 +44,8 @@ message(STATUS "===============================================")
 # STEP 1: Build LMGC90 Core Library
 # ===================================================================
 
-# Determine compilers (always use GCC - no oneAPI environment needed!)
+# Determine compilers
 set(USING_INTEL_ONEAPI FALSE)
-set(CMAKE_C_COMPILER_ARG "gcc")
-set(CMAKE_CXX_COMPILER_ARG "g++")
 set(BLAS_VENDOR_ARG "")
 message(STATUS "Using GCC compilers (no oneAPI environment required)")
 FetchContent_Declare(lmgc90 GIT_REPOSITORY https://compas:glpat-to65i8oMIi3pD9miaj0nBW86MQp1OjduCA.01.0y1p3o8t8@git-xen.lmgc.univ-montp2.fr/lmgc90/lmgc90_dev.git
