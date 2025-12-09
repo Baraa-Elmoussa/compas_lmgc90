@@ -74,8 +74,15 @@ install(TARGETS _lmgc90 LIBRARY DESTINATION compas_lmgc90)
 install(TARGETS wrap_lmgc90_compas LIBRARY DESTINATION compas_lmgc90)
 install(TARGETS lmgc90_F_lib LIBRARY DESTINATION compas_lmgc90)
 
-set_target_properties(_lmgc90 PROPERTIES INSTALL_RPATH "$ORIGIN")
-set_target_properties(wrap_lmgc90_compas PROPERTIES INSTALL_RPATH "$ORIGIN")
+# RPATH handling: $ORIGIN for Linux, @loader_path for macOS
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+    set(_RPATH "@loader_path")
+else()
+    set(_RPATH "$ORIGIN")
+endif()
+set_target_properties(_lmgc90 PROPERTIES INSTALL_RPATH "${_RPATH}")
+set_target_properties(wrap_lmgc90_compas PROPERTIES INSTALL_RPATH "${_RPATH}")
 
 message(STATUS "===============================================")
 message(STATUS "Build Configuration:")
