@@ -99,3 +99,39 @@ export CC=$(brew --prefix gcc)/bin/gcc-14
 export CXX=$(brew --prefix gcc)/bin/g++-14
 pip install --no-build-isolation -ve .
 ```
+
+### macOS: Compiler not found
+
+If CMake can't find gfortran, manually set the compilers before building:
+```bash
+export FC=$(brew --prefix gcc)/bin/gfortran-14
+export CC=$(brew --prefix gcc)/bin/gcc-14
+export CXX=$(brew --prefix gcc)/bin/g++-14
+pip install --no-build-isolation -ve .
+```
+
+## Contributing
+
+### Testing a Pull Request
+
+```bash
+# Fetch the PR branch (replace PR_NUMBER with the actual number)
+git fetch upstream pull/PR_NUMBER/head:pr-branch-name
+git checkout pr-branch-name
+
+# Build and test
+pip install --no-build-isolation -ve .
+python temp/contacts.py
+```
+
+### Pushing changes to a PR
+
+```bash
+# Add the PR author's fork as a remote
+git remote add author https://github.com/AUTHOR/compas_lmgc90.git
+
+# Push your changes to their branch
+git push author branch-name
+```
+
+**Note:** This requires the PR author to have enabled "Allow edits from maintainers" on their PR.
