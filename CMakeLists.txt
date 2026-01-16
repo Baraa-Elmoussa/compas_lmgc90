@@ -49,8 +49,9 @@ set(USING_INTEL_ONEAPI FALSE)
 set(BLAS_VENDOR_ARG "")
 message(STATUS "Using GCC compilers (no oneAPI environment required)")
 FetchContent_Declare(lmgc90 GIT_REPOSITORY https://compas:glpat-to65i8oMIi3pD9miaj0nBW86MQp1OjduCA.01.0y1p3o8t8@git-xen.lmgc.univ-montp2.fr/lmgc90/lmgc90_dev.git
-                            GIT_TAG cbe1fd1ffe1ea32b3361c44e0cd13f7abce10e7e
+                            GIT_TAG 504f3307bdf460803a3791fd0150fcba7a3fca86
 )
+#FetchContent_Declare(lmgc90 SOURCE_DIR /home/mozul/WORK/LMGC90/sources/lmgc90_dev)
 
 set( LMGC90_BUILD_ChiPy    OFF    CACHE INTERNAL "" FORCE)
 set( LMGC90_BUILD_PRE      OFF    CACHE INTERNAL "" FORCE)
@@ -60,7 +61,6 @@ set( LMGC90_ENABLE_DOC     OFF    CACHE INTERNAL "" FORCE)
 set( LMGC90_WITH_HDF5      OFF    CACHE INTERNAL "" FORCE)
 set( LMGC90_MATLIB_VERSION "none" CACHE INTERNAL "" FORCE)
 set( LMGC90_SPARSE_LIBRARY "none" CACHE INTERNAL "" FORCE)
-set( LMGC90_BUILD_Fortran_LIB ON  CACHE INTERNAL "" FORCE)
 set( LMGC90_BUILD_SHARED_LIBS ON  CACHE INTERNAL "" FORCE)
 
 FetchContent_MakeAvailable(lmgc90)
@@ -99,7 +99,6 @@ message(STATUS "Using LAPACK libraries: ${LAPACK_LIBRARIES}")
 
 install(TARGETS _lmgc90 LIBRARY DESTINATION compas_lmgc90)
 install(TARGETS wrap_lmgc90_compas LIBRARY DESTINATION compas_lmgc90)
-install(TARGETS lmgc90_F_lib LIBRARY DESTINATION compas_lmgc90)
 
 # RPATH handling: $ORIGIN for Linux, @loader_path for macOS
 if(APPLE)
@@ -110,6 +109,13 @@ else()
 endif()
 set_target_properties(_lmgc90 PROPERTIES INSTALL_RPATH "${_RPATH}")
 set_target_properties(wrap_lmgc90_compas PROPERTIES INSTALL_RPATH "${_RPATH}")
+
+# install of needed target of LMGC90 and reset rpath
+set(LMGC90_DEPS lmgc90_F_lib demmefi Clipper2 minpack ann_euclid predicates)
+foreach( LMGC90_DEP ${LMGC90_DEPS} )
+  install(TARGETS ${LMGC90_DEP} LIBRARY DESTINATION compas_lmgc90)
+  set_target_properties(${LMGC90_DEP} PROPERTIES INSTALL_RPATH "${_RPATH}")
+endforeach( LMGC90_DEP ${LMGC90_DEPS} )
 
 message(STATUS "===============================================")
 message(STATUS "Build Configuration:")
