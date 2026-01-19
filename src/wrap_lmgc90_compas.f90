@@ -309,30 +309,32 @@ contains
 
   end subroutine initialize
 
-  !subroutine set_materials(nb, names, types, densities) bind(c, name='lmgc_set_materials')
   subroutine set_materials(nb, c_densities) bind(c, name='lmgc90_set_materials')
     implicit none
     integer(c_int), intent(in), value :: nb
-    type(c_ptr), intent(in), value :: c_densities
-    !type(c_ptr)   , value      :: names, types
+    type(c_ptr)   , intent(in), value :: c_densities
     !!
     integer :: i_mat, ret
-    character(len=5)  :: material
     character(len=30) :: mat_type
-    real(c_double), pointer :: densities(:)
+    character(len=5)  :: material
+    !character(len=5), dimension(:), pointer :: materials
+    real(c_double)  , dimension(:), pointer :: densities
 
     mat_type = 'RIGID'
-    material = 'STONE'
 
     ! Convert C pointer to Fortran array
     call c_f_pointer(cptr=c_densities, fptr=densities, shape=(/nb/))
+    !call c_f_pointer(cptr=c_names    , fptr=materials, shape=(/nb/))
 
     call set_gravity( (/0.d0, 0.d0, -9.81d0/) )
     ! LMGC90 uses single material type, so we use the first density
     ! TODO: Support multiple material types when LMGC90 allows per-body materials
-    call set_nb_bulks( 1 )
-    ret = add_one_bulk( material, mat_type )
-    call set_scalar_param(ret, 'density', densities(1))
+    call set_nb_bulks( nb )
+    do i_mat = 1, nb
+      write(material, '(A1,I4.4)'), 's', i_mat
+      ret = add_one_bulk( material, mat_type )
+      call set_scalar_param(ret, 'density', densities(i_mat))
+    end do
 
   end subroutine set_materials
 
@@ -381,8 +383,9 @@ contains
 
   end subroutine
 
-  subroutine set_one_polyr(coor, c_connec, nb_tri, c_vertices, nb_v, fixed) bind(c, name='lmgc90_set_one_polyr')
+  subroutine set_one_polyr(c_behav, coor, c_connec, nb_tri, c_vertices, nb_v, fixed) bind(c, name='lmgc90_set_one_polyr')
     implicit none
+    type(c_ptr), intent(in), value :: c_behav
     real(kind=c_double), dimension(3), intent(in) :: coor
     type(c_ptr)                , value :: c_connec
     integer(c_int) , intent(in), value :: nb_tri
@@ -400,13 +403,13 @@ contains
     real(kind=8), dimension(3)          :: shift      = 0.d0
     real(kind=8), dimension(6)          :: drv_values = 0.d0
     real(kind=8) :: vol = 0.d0
-    character(len=5) :: color, behav
+    character(len=5) :: color
+    character(len=5), pointer :: behav
     integer :: i_bdyty, i_dof, nb_v_drvdof, nb_f_drvdof
-
-    behav = 'STONE' ! check set_materials
 
     call c_f_pointer( cptr=c_connec  , fptr=connec  , shape=(/3*nb_tri/) )
     call c_f_pointer( cptr=c_vertices, fptr=vertices, shape=(/3*nb_v/) )
+    call c_f_pointer( cptr=c_behav, fptr=behav )
 
     ! number of 'force' driven dof
     nb_f_drvdof = 0

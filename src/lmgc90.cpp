@@ -22,7 +22,7 @@ extern "C" {
     void lmgc90_set_tact_behavs(int nb);
     void lmgc90_set_see_tables(void);
     void lmgc90_set_nb_bodies(int nb);
-    void lmgc90_set_one_polyr(double coor[3], int* faces, int nb_faces, double* vertices, int nb_v, bool fixed);
+    void lmgc90_set_one_polyr(char behav[5], double coor[3], int* faces, int nb_faces, double* vertices, int nb_v, bool fixed);
     void lmgc90_close_before_computing(void);
     void lmgc90_compute_one_step(void);
     void lmgc90_finalize(void);
@@ -132,7 +132,7 @@ public:
         lmgc90_set_nb_bodies(nb);
     }
 
-    void set_one_polyr(std::vector<double> coor, std::vector<int> faces, std::vector<double> vertices, bool fixed) {
+    void set_one_polyr(std::string mat, std::vector<double> coor, std::vector<int> faces, std::vector<double> vertices, bool fixed) {
         if (coor.size() != 3) {
             throw std::runtime_error("coor must have 3 elements [x, y, z]");
         }
@@ -146,7 +146,7 @@ public:
         int nb_faces = faces.size() / 3;
         int nb_vertices = vertices.size() / 3;
         
-        lmgc90_set_one_polyr(coor.data(), faces.data(), nb_faces, vertices.data(), nb_vertices, fixed);
+        lmgc90_set_one_polyr(mat.data(), coor.data(), faces.data(), nb_faces, vertices.data(), nb_vertices, fixed);
     }
 
     void close_before_computing() {
@@ -337,9 +337,9 @@ void set_nb_bodies(int nb) {
     g_solver->set_nb_bodies(nb);
 }
 
-void set_one_polyr(std::vector<double> coor, std::vector<int> faces, std::vector<double> vertices, bool fixed) {
+void set_one_polyr(std::string mat, std::vector<double> coor, std::vector<int> faces, std::vector<double> vertices, bool fixed) {
     if (!g_solver) throw std::runtime_error("Solver not initialized");
-    g_solver->set_one_polyr(coor, faces, vertices, fixed);
+    g_solver->set_one_polyr(mat, coor, faces, vertices, fixed);
 }
 
 void close_before_computing() {
@@ -385,7 +385,7 @@ NB_MODULE(_lmgc90, m) {
         .def("set_see_tables", &LMGC90Solver::set_see_tables)
         .def("set_nb_bodies", &LMGC90Solver::set_nb_bodies, nb::arg("nb"))
         .def("set_one_polyr", &LMGC90Solver::set_one_polyr,
-             nb::arg("coor"), nb::arg("faces"), nb::arg("vertices"), nb::arg("fixed") = false)
+             nb::arg("mat"), nb::arg("coor"), nb::arg("faces"), nb::arg("vertices"), nb::arg("fixed") = false)
         .def("close_before_computing", &LMGC90Solver::close_before_computing)
         .def("get_initial_state", &LMGC90Solver::get_initial_state)
         .def("compute_one_step", &LMGC90Solver::compute_one_step)
@@ -444,7 +444,7 @@ NB_MODULE(_lmgc90, m) {
           "Set number of rigid bodies");
     
     m.def("set_one_polyr", &set_one_polyr, 
-          nb::arg("coor"), nb::arg("faces"), nb::arg("vertices"), nb::arg("fixed") = false,
+          nb::arg("mat"), nb::arg("coor"), nb::arg("faces"), nb::arg("vertices"), nb::arg("fixed") = false,
           "Add one polyhedral body");
     
     m.def("close_before_computing", &close_before_computing,

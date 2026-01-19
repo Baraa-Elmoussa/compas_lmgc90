@@ -85,7 +85,8 @@ class Solver:
             v, f = mesh.to_vertices_and_faces(True)
             v_flat = [item for sublist in v for item in sublist]
             f_flat = [item + 1 for sublist in f for item in sublist]  # 1-indexed
-            self.lmgc90.set_one_polyr(self.centroids[i], f_flat, v_flat, self.supports[i])
+            mat = self.d2n[ self.densities[i] ]
+            self.lmgc90.set_one_polyr(mat, self.centroids[i], f_flat, v_flat, self.supports[i])
 
     def _get_initial_state(self):
         """Retrieve and store initial state from LMGC90."""
@@ -185,7 +186,15 @@ class Solver:
         then retrieves the initial state from LMGC90.
 
         """
-        self.lmgc90.set_materials(self.densities)
+
+        # materials are identified by a 5 characters string and a densisty:
+        # density to name dic generation
+        d2n = np.unique(self.densities)
+        if len(d2n) > 9999:
+          raise ValueError("Too many materials for LMGC90")
+        self.d2n = { d : f"s{i+1:0>4}" for i, d in enumerate(d2n) }
+
+        self.lmgc90.set_materials(np.fromiter(self.d2n.keys(), dtype=float))
         self.lmgc90.set_tact_behavs(1)
         self.lmgc90.set_see_tables()
         self.lmgc90.set_nb_bodies(len(self.trimeshes))
