@@ -19,7 +19,7 @@ extern "C" {
     
     void lmgc90_initialize(double dt, double theta);
     void lmgc90_set_materials(int nb, double* densities);
-    void lmgc90_set_tact_behavs(int nb);
+    void lmgc90_add_one_tact_behav(char name[5], char law[30], int nb_p, double * params);
     void lmgc90_set_see_tables(void);
     void lmgc90_set_nb_bodies(int nb);
     void lmgc90_set_one_polyr(char behav[5], double coor[3], int* faces, int nb_faces, double* vertices, int nb_v, bool fixed);
@@ -120,8 +120,10 @@ public:
         lmgc90_set_materials(densities.size(), const_cast<double*>(densities.data()));
     }
 
-    void set_tact_behavs(int nb) {
-        lmgc90_set_tact_behavs(nb);
+    void add_one_tact_behav(std::string name, std::string law, std::vector<double>& params) {
+        char law_name[30] = { ' ' };
+        strncpy(law_name, law.c_str(), law.size()); 
+        lmgc90_add_one_tact_behav(name.data(), law_name, params.size(), const_cast<double*>(params.data()));
     }
 
     void set_see_tables() {
@@ -322,9 +324,9 @@ void set_materials(const std::vector<double>& densities) {
     g_solver->set_materials(densities);
 }
 
-void set_tact_behavs(int nb) {
+void add_one_tact_behav(std::string name, std::string law, std::vector<double>& params) {
     if (!g_solver) throw std::runtime_error("Solver not initialized");
-    g_solver->set_tact_behavs(nb);
+    g_solver->add_one_tact_behav(name, law, params);
 }
 
 void set_see_tables() {
@@ -381,7 +383,8 @@ NB_MODULE(_lmgc90, m) {
         .def("set_materials", &LMGC90Solver::set_materials, 
              nb::arg("densities"),
              "Set materials with per-block densities (kg/m³)")
-        .def("set_tact_behavs", &LMGC90Solver::set_tact_behavs, nb::arg("nb"))
+        .def("add_one_tact_behav", &LMGC90Solver::add_one_tact_behav,
+             nb::arg("name"), nb::arg("law"), nb::arg("params"))
         .def("set_see_tables", &LMGC90Solver::set_see_tables)
         .def("set_nb_bodies", &LMGC90Solver::set_nb_bodies, nb::arg("nb"))
         .def("set_one_polyr", &LMGC90Solver::set_one_polyr,
@@ -434,8 +437,9 @@ NB_MODULE(_lmgc90, m) {
           nb::arg("densities"),
           "Set materials with per-block densities (kg/m³)");
     
-    m.def("set_tact_behavs", &set_tact_behavs, nb::arg("nb"),
-          "Set number of contact behaviors");
+    m.def("add_one_tact_behav", &add_one_tact_behav,
+          nb::arg("name"), nb::arg("law"), nb::arg("params"),
+          "Set one contact law parameters" );
     
     m.def("set_see_tables", &set_see_tables,
           "Configure contact detection tables");

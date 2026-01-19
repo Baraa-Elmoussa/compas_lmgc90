@@ -162,7 +162,7 @@ class Solver:
             self.supports.append(getattr(element, "is_support", False))
         return self
 
-    def contact_law(self, name_of_contact_law, coeff):
+    def contact_law(self, law, coeff):
         """Set contact law parameters.
 
         Parameters
@@ -172,12 +172,10 @@ class Solver:
         coeff : float
             Coefficient for the contact law.
 
-        Notes
-        -----
-        This method is not yet implemented.
-
         """
-        # _lmgc90.contact_law("name_of_contact_law", coeff)
+        name = "iqsc0"
+        self.lmgc90.add_one_tact_behav(name, law, [coeff])
+
 
     def preprocess(self):
         """Initialize LMGC90 simulation.
@@ -195,7 +193,6 @@ class Solver:
         self.d2n = { d : f"s{i+1:0>4}" for i, d in enumerate(d2n) }
 
         self.lmgc90.set_materials(np.fromiter(self.d2n.keys(), dtype=float))
-        self.lmgc90.set_tact_behavs(1)
         self.lmgc90.set_see_tables()
         self.lmgc90.set_nb_bodies(len(self.trimeshes))
         self._set_geometry()

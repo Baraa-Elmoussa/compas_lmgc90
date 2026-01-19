@@ -76,7 +76,7 @@
   extern void lmgc90_initialize(double dt, double theta);
 
   extern void lmgc90_set_materials(int nb, double * densities);
-  extern void lmgc90_set_tact_behavs(int nb);
+  extern void lmgc90_add_one_tact_behav(char[5] name, char[30] law, int nb_p, double * params);
   extern void lmgc90_set_see_tables(void);
   extern void lmgc90_set_nb_bodies(int nb);
   extern void lmgc90_set_one_polyr(char[5] mat, double coor[3], int * faces, int nb_faces, double * vertices, int nb_v, bool fixed);

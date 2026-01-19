@@ -56,6 +56,7 @@ solver.set_supports(z_threshold=0.4)  # Set support flags
 
 # Contacts - 
 # solver.contact_law("name_of_contact_law", coeff)
+solver.contact_law("IQS_CLB", 0.35)
 
 # Physical Boundaries
 # solver.rigid_plane(origin, normal)

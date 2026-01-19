@@ -307,6 +307,8 @@ contains
     call set_time_step(dt, .false.)
     call init_theta_integrator(theta)
 
+    call open_tact_behav_ll()
+
   end subroutine initialize
 
   subroutine set_materials(nb, c_densities) bind(c, name='lmgc90_set_materials')
@@ -338,33 +340,41 @@ contains
 
   end subroutine set_materials
 
-  subroutine set_tact_behavs(nb) bind(c, name='lmgc90_set_tact_behavs')
-
+  subroutine add_one_tact_behav(c_name, c_law, nb_p, c_params) bind(c, name='lmgc90_add_one_tact_behav')
     implicit none
-    integer(c_int), intent(in), value :: nb
+    type(c_ptr)   , intent(in), value :: c_name !char[5]
+    type(c_ptr)   , intent(in), value :: c_law  !char[30]
+    integer(c_int), intent(in), value :: nb_p
+    type(c_ptr)   , intent(in), value :: c_params
     !!
     integer :: i_behav
-    character(len=30) :: behav_laws
-    real(kind=8)     , dimension(:), pointer :: f_frictions
+    character(len=5) , pointer :: nickname
+    character(len=30), pointer :: law
+    real(kind=8)     , dimension(:), pointer :: params
 
-    allocate(f_frictions(1))
-    f_frictions(:) = 0.5d0
+    call c_f_pointer( cptr=c_name  , fptr=nickname)
+    call c_f_pointer( cptr=c_law   , fptr=law     )
+    call c_f_pointer( cptr=c_params, fptr=params, shape=(/nb_p/))
 
-    call open_tact_behav_ll()
-
-    behav_laws = 'IQS_CLB'
-    do i_behav = 1, nb
-      call add_to_tact_behav_ll(behav_laws, 'iqsc0', f_frictions)
+    ! so ugly and dumb...
+    do i_behav = 1, 30
+      if(  law(i_behav:i_behav) == c_null_char ) then
+        law(i_behav:) = " "
+        exit
+      end if
     end do
+    call add_to_tact_behav_ll(law, nickname, params)
 
-    call close_tact_behav_ll()
+    nickname => null()
+    law      => null()
+    params   => null()
 
-    deallocate(f_frictions)
-    nullify(f_frictions)
-  end subroutine set_tact_behavs
+  end subroutine add_one_tact_behav
 
   subroutine set_see_tables() bind(c, name='lmgc90_set_see_tables')!cd, an, behav, alert, halo)
     implicit none
+
+    call close_tact_behav_ll()
 
     call open_see_ll()
     call add_to_see_ll('RBDY3', 'POLYR', 'REDxx', 'iqsc0',     &
