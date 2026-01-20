@@ -3,7 +3,6 @@ from compas_dem.templates import ArchTemplate
 from compas_dem.viewer import DEMViewer
 from compas_lmgc90.solver import Solver 
 
-
 # =============================================================================
 # Template
 # =============================================================================
@@ -57,6 +56,12 @@ solver.set_supports(z_threshold=0.4)  # Set support flags
 # Contacts - 
 # solver.contact_law("name_of_contact_law", coeff)
 solver.contact_law("IQS_CLB", 0.35)
+
+# meaning of parameters here : https://lmgc90.pages-git-xen.lmgc.univ-montp2.fr/lmgc90_dev/pre_interaction.html
+#             dyfr, stfr,   cn,   ct,  S1,  S2,  G1,   G2, Eta (cut of the exponent value)
+czm_params = [0.73, 0.73, 1e10, 1e11, 5e4, 2e5, 40., 100., 1e-4]
+#solver.contact_law('IQS_EXPO_CZM',czm_params)
+
 
 # Physical Boundaries
 # solver.rigid_plane(origin, normal)

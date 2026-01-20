@@ -162,7 +162,7 @@ class Solver:
             self.supports.append(getattr(element, "is_support", False))
         return self
 
-    def contact_law(self, law, coeff):
+    def contact_law(self, law, coeffs):
         """Set contact law parameters.
 
         Parameters
@@ -174,7 +174,8 @@ class Solver:
 
         """
         name = "iqsc0"
-        self.lmgc90.add_one_tact_behav(name, law, [coeff])
+        coeffs = [coeffs] if isinstance(coeffs, float) else coeffs
+        self.lmgc90.add_one_tact_behav(name, law, coeffs)
 
 
     def preprocess(self):
