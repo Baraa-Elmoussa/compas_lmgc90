@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 
 from compas.geometry import Line
@@ -53,6 +55,9 @@ class Solver:
         self.model = model
         self._model_to_lmgc90()
 
+        # Drvdof management
+        self.v_drvdof = defaultdict( dict )
+
         # Handle density: single value or list
         if isinstance(density, (list, tuple)):
             if len(density) != len(self.trimeshes):
@@ -86,7 +91,16 @@ class Solver:
             v_flat = [item for sublist in v for item in sublist]
             f_flat = [item + 1 for sublist in f for item in sublist]  # 1-indexed
             mat = self.d2n[ self.densities[i] ]
-            self.lmgc90.set_one_polyr(mat, self.centroids[i], f_flat, v_flat, self.supports[i])
+            # driven dof managment
+            nb_f = 0
+            if i in self.v_drvdof.keys():
+              nb_v = len(self.v_drvdof[i])
+            vel_ddof = True
+
+            self.lmgc90.set_one_polyr(mat, self.centroids[i], f_flat, v_flat, nb_v, nb_f)
+            for i_dof, drv_vals in self.v_drvdof[i].items():
+              evol = drv_vals.shape[0] == 2
+              self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), vel_ddof, evol)
 
     def _get_initial_state(self):
         """Retrieve and store initial state from LMGC90."""
@@ -146,6 +160,13 @@ class Solver:
         self.supports = []
         for centroid in self.centroids:
             self.supports.append(centroid[2] < z_threshold)
+
+        for i, s in enumerate(self.supports):
+          if not s:
+            continue
+          value = np.zeros([6])
+          self.v_drvdof[i] = { i_dof:value for i_dof in range(1,7) }
+
         return self
 
     def set_supports_from_model(self):
@@ -160,7 +181,52 @@ class Solver:
         self.supports = []
         for element in self.model.elements():
             self.supports.append(getattr(element, "is_support", False))
+
+        for i, s in enumerate(self.supports):
+          if not s:
+            continue
+          value = np.zeros([6])
+          self.v_drvdof[i] = { i_dof:value for i_dof in range(1,7) }
         return self
+
+    def apply_velocity(self, block_index, component, value=0.):
+        """Set support flags from model elements.
+
+        Parameters
+        ----------
+        Block_Index: integer
+            The index of block on which to apply velocity
+        Global_Component: string (of size 2)
+            The component on which to apply velocity must be among (Vx, Vy, Vz, Rx, Ry, Rz)
+        Value: float or array of floats
+            If a single float, imposed value over time
+            If 1D array, must be of size 6 and implements the time function
+              V(t) = [v[0] + v[1] * cos(v[2]*t+v[3]) ] * min(1, v[4]+v[5]*t)
+            If a 2D array, must be of size [2,nb] with nb >=2 to provide velocity
+              at different times.
+        """
+
+        cmp_s2i = { 'Vx':1, 'Vy':2, 'Vz':3, 'Rx':4, 'Ry':5, 'Rz':6 }
+
+        # First, attempt to make a numpy array
+        if not isinstance(value, np.ndarray):
+          if isinstance(value, float):
+            v = np.zeros( [1,6] )
+            v[0,0] = value
+            v[0,4] = 1.e0
+          else:
+            v = np.array( value )
+          value = v
+
+        # Second, check that it is usable
+        assert value.ndim == 2, "Value array as wrong dimensions"
+        if value.shape[0] == 1:
+          assert value.size == 6, "Value array must be of size 6"
+        else:
+          assert value.shape[0] == 2 and value.shape[1] > 1, "Value array must be of shape [2xn], n>1"
+
+        self.v_drvdof[block_index][cmp_s2i[component]] = value
+
 
     def contact_law(self, law, coeffs):
         """Set contact law parameters.

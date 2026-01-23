@@ -1,3 +1,5 @@
+import numpy as np
+
 from compas_dem.models import BlockModel
 from compas_dem.templates import ArchTemplate
 from compas_dem.viewer import DEMViewer
@@ -51,7 +53,12 @@ solver.set_supports(z_threshold=0.4)  # Set support flags
 # Forces
 # solver.apply_force(block_index=0, t0=0 sec, rate=[Fx, Fy Fz, Rx, Ry, Rz] N/s, maximum_time=10 sec) 
 # solver.apply_force(block_index=0, t0=0 sec, Global_Component = Fx, rate=5 N/s, maximum_time=10 sec) 
-# solver.apply_velocity(block_index=0, t0=0 sec, Global_Component = Vx, rate=5 mm/s, maximum_time=10 sec) 
+
+# constante imposed velocity during simulation
+#solver.apply_velocity(block_index=10, component = "Vz", value= 1e-2 ) 
+# imposed velocity of 0. between 0 and 0.5 second and linear increase between 0.5 and 1. second to
+# the imposed value of 1e-2
+solver.apply_velocity(block_index=10, component = "Vz", value= np.array( [[0., 0.5, 1.0],[0., 0., 1e-2]] ) ) 
 
 # Contacts - 
 # solver.contact_law("name_of_contact_law", coeff)
