@@ -48,10 +48,19 @@ message(STATUS "===============================================")
 set(USING_INTEL_ONEAPI FALSE)
 set(BLAS_VENDOR_ARG "")
 message(STATUS "Using GCC compilers (no oneAPI environment required)")
+
+# RPATH handling: $ORIGIN for Linux, @loader_path for macOS
+# must be set before adding LMGC90 to inherit the correct value
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+    set(_RPATH "@loader_path")
+else()
+    set(_RPATH "$ORIGIN")
+endif()
 FetchContent_Declare(lmgc90 GIT_REPOSITORY https://compas:glpat-to65i8oMIi3pD9miaj0nBW86MQp1OjduCA.01.0y1p3o8t8@git-xen.lmgc.univ-montp2.fr/lmgc90/lmgc90_dev.git
-                            GIT_TAG 504f3307bdf460803a3791fd0150fcba7a3fca86
+                            GIT_TAG 51d5addd12c4ea0f3614c908b86c5907d80287c6
 )
-#FetchContent_Declare(lmgc90 SOURCE_DIR /home/mozul/WORK/LMGC90/sources/lmgc90_dev)
+#FetchContent_Declare(lmgc90 SOURCE_DIR /Users/mozul/WORK/LMGC90/sources/lmgc90_dev)
 
 set( LMGC90_BUILD_ChiPy    OFF    CACHE INTERNAL "" FORCE)
 set( LMGC90_BUILD_PRE      OFF    CACHE INTERNAL "" FORCE)
@@ -100,13 +109,6 @@ message(STATUS "Using LAPACK libraries: ${LAPACK_LIBRARIES}")
 install(TARGETS _lmgc90 LIBRARY DESTINATION compas_lmgc90)
 install(TARGETS wrap_lmgc90_compas LIBRARY DESTINATION compas_lmgc90)
 
-# RPATH handling: $ORIGIN for Linux, @loader_path for macOS
-if(APPLE)
-    set(CMAKE_MACOSX_RPATH ON)
-    set(_RPATH "@loader_path")
-else()
-    set(_RPATH "$ORIGIN")
-endif()
 set_target_properties(_lmgc90 PROPERTIES INSTALL_RPATH "${_RPATH}")
 set_target_properties(wrap_lmgc90_compas PROPERTIES INSTALL_RPATH "${_RPATH}")
 
