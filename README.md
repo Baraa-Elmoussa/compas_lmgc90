@@ -4,6 +4,19 @@ Python bindings for LMGC90 discrete element solver.
 
 ## Installation
 
+### Conda
+
+With conda alreay installed, create a conda environment from the yaml file
+```bash
+conda env create -f environment.yml
+```
+Then activate it and install the module inside it:
+```bash
+conda activate compas_lmgc90-dev
+python -m pip install .
+```
+
+
 ### Linux
 
 ```bash
