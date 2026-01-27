@@ -335,7 +335,7 @@ contains
     ! TODO: Support multiple material types when LMGC90 allows per-body materials
     call set_nb_bulks( nb )
     do i_mat = 1, nb
-      write(material, '(A1,I4.4)'), 's', i_mat
+      write(material, '(A1,I4.4)') 's', i_mat
       ret = add_one_bulk( material, mat_type )
       call set_scalar_param(ret, 'density', densities(i_mat))
     end do
