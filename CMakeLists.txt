@@ -106,16 +106,28 @@ message(STATUS "Using BLAS libraries: ${BLAS_LIBRARIES}")
 message(STATUS "Using LAPACK libraries: ${LAPACK_LIBRARIES}")
 
 
-install(TARGETS _lmgc90 LIBRARY DESTINATION compas_lmgc90)
-install(TARGETS wrap_lmgc90_compas LIBRARY DESTINATION compas_lmgc90)
+install(TARGETS _lmgc90
+        LIBRARY DESTINATION compas_lmgc90
+        RUNTIME DESTINATION compas_lmgc90
+        ARCHIVE DESTINATION compas_lmgc90
+)
+install(TARGETS wrap_lmgc90_compas
+        LIBRARY DESTINATION compas_lmgc90
+        RUNTIME DESTINATION compas_lmgc90
+        ARCHIVE DESTINATION compas_lmgc90
+)
 
 set_target_properties(_lmgc90 PROPERTIES INSTALL_RPATH "${_RPATH}")
 set_target_properties(wrap_lmgc90_compas PROPERTIES INSTALL_RPATH "${_RPATH}")
 
 # install of needed target of LMGC90 and reset rpath
-set(LMGC90_DEPS lmgc90_F_lib demmefi Clipper2 minpack ann_euclid predicates)
+set(LMGC90_DEPS lmgc90_F_lib demmefi Clipper2 minpack ann_euclid ann_manhattan librtree predicates)
 foreach( LMGC90_DEP ${LMGC90_DEPS} )
-  install(TARGETS ${LMGC90_DEP} LIBRARY DESTINATION compas_lmgc90)
+  install(TARGETS ${LMGC90_DEP}
+          LIBRARY DESTINATION compas_lmgc90
+          RUNTIME DESTINATION compas_lmgc90
+          ARCHIVE DESTINATION compas_lmgc90
+  )
   set_target_properties(${LMGC90_DEP} PROPERTIES INSTALL_RPATH "${_RPATH}")
 endforeach( LMGC90_DEP ${LMGC90_DEPS} )
 

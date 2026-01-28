@@ -103,14 +103,21 @@ cmake.build-type = "Release"
 provider = "scikit_build_core.metadata.regex"
 input = "src/compas_lmgc90/__init__.py"
 
+[[tool.scikit-build.overrides]]
+if.platform-system = "^win32"
+cmake.args = ["-G", "Ninja"]
+
+[[tool.scikit-build.overrides]]
+if.platform-system = "^darwin"
+cmake.define.CMAKE_C_COMPILER = "clang"
+cmake.define.CMAKE_CXX_COMPILER = "clang++"
+cmake.define.CMAKE_Fortran_COMPILER = "gfortran"
+#cmake.define.CMAKE_C_COMPILER = "/opt/homebrew/bin/gcc-15"
+#cmake.define.CMAKE_CXX_COMPILER = "/opt/homebrew/bin/g++-15"
+#cmake.define.CMAKE_Fortran_COMPILER = "/opt/homebrew/bin/gfortran"
+
 [tool.scikit-build.cmake.define]
 CMAKE_POLICY_DEFAULT_CMP0135 = "NEW"
-CMAKE_C_COMPILER = "clang"
-CMAKE_CXX_COMPILER = "clang++"
-CMAKE_Fortran_COMPILER = "gfortran"
-#CMAKE_C_COMPILER = "/opt/homebrew/bin/gcc-15"
-#CMAKE_CXX_COMPILER = "/opt/homebrew/bin/g++-15"
-#CMAKE_Fortran_COMPILER = "/opt/homebrew/bin/gfortran"
 
 # ============================================================================
 # cibuildwheel configuration
