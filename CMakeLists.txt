@@ -58,7 +58,7 @@ else()
     set(_RPATH "$ORIGIN")
 endif()
 FetchContent_Declare(lmgc90 GIT_REPOSITORY https://compas:glpat-to65i8oMIi3pD9miaj0nBW86MQp1OjduCA.01.0y1p3o8t8@git-xen.lmgc.univ-montp2.fr/lmgc90/lmgc90_dev.git
-                            GIT_TAG 9d1a4d394b122e131a40d4e05a2a4053c054fa68
+                            GIT_TAG compas_dev
 )
 #FetchContent_Declare(lmgc90 SOURCE_DIR /Users/mozul/WORK/LMGC90/sources/lmgc90_dev)
 
@@ -71,6 +71,7 @@ set( LMGC90_WITH_HDF5      OFF    CACHE INTERNAL "" FORCE)
 set( LMGC90_MATLIB_VERSION "none" CACHE INTERNAL "" FORCE)
 set( LMGC90_SPARSE_LIBRARY "none" CACHE INTERNAL "" FORCE)
 set( LMGC90_BUILD_SHARED_LIBS ON  CACHE INTERNAL "" FORCE)
+set( LMGC90_BUILD_Fortran_LIB ON  CACHE INTERNAL "" FORCE)
 
 FetchContent_MakeAvailable(lmgc90)
 
