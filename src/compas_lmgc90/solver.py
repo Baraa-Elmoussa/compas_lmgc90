@@ -1,4 +1,5 @@
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 
@@ -67,9 +68,13 @@ class Solver:
             # Single density for all blocks
             self.densities = [float(density)] * len(self.trimeshes)
 
+        # In debug mode, the OUTBOX directory must exist...
+        outbox = Path('./OUTBOX')
+        outbox.mkdir(exist_ok=True)
         # Create LMGC90 solver instance
         self.lmgc90 = _lmgc90.LMGC90Solver()
         self.lmgc90.initialize(dt, theta, debug)
+
 
     def _model_to_lmgc90(self):
         """Extract meshes and centroids from model."""

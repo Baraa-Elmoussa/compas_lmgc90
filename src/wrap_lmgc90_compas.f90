@@ -492,21 +492,22 @@ contains
     call stock_rloc_3D(i_prprx)
 
     !! write out
-    !call write_out_bulk_behav()
-    !call write_xxx_tact_behav(2)
+    if( debug ) then
+      call write_out_bulk_behav()
+      call write_xxx_tact_behav(2)
 
-    !call write_out_bodies_ol()
-    !call write_out_bodies_RBDY3(1)
+      call write_out_bodies_ol()
+      call write_out_bodies_RBDY3(1)
 
-    !call write_out_driven_dof_ol()
-    !call write_out_driven_dof_RBDY3()
+      call write_out_driven_dof_ol()
+      call write_out_driven_dof_RBDY3()
 
-    !! write out first *.ini as *.out.1
-    !call write_xxx_dof_ol(1)
-    !call write_xxx_dof_RBDY3(1,1,get_nb_RBDY3())
-    !call write_xxx_vloc_rloc_ol(1)
-    !call write_xxx_vloc_rloc_PRPRx(1)
-
+      ! write out first *.ini as *.out.1
+      call write_xxx_dof_ol(1)
+      call write_xxx_dof_RBDY3(1,1,get_nb_RBDY3())
+      call write_xxx_vloc_rloc_ol(1)
+      call write_xxx_vloc_rloc_PRPRx(1)
+    end if
 
     ! no write
     !io_hdf5_initOutFile( 'lmgc90.h5' )
@@ -595,18 +596,20 @@ contains
     call update_dof_RBDY3
 
     !no write at all
-    !! no hdf5...
-    !!if TimeEvolution_GetStep()%freq == 0
-    !!  io_hdf5_write( )
-    !if( modulo(get_NSTEP(),freq_write) == 0 ) then
-    !  call write_xxx_dof_ol(1)
-    !  call write_xxx_Vloc_Rloc_ol(1)
-    !end if
-    !ifrom = 1
-    !ito   = get_nb_RBDY3()
-    !if (get_write_DOF_RBDY3())        call write_xxx_dof_RBDY3(1,ifrom,ito)
-    !if( get_write_Vloc_Rloc_PRPRx() ) call write_xxx_Vloc_Rloc_PRPRx(1)
-    !!WriteHDF5(nsteps)
+    if( debug ) then
+      ! no hdf5...
+      !if TimeEvolution_GetStep()%freq == 0
+      !  io_hdf5_write( )
+      if( modulo(get_NSTEP(),freq_write) == 0 ) then
+        call write_xxx_dof_ol(1)
+        call write_xxx_Vloc_Rloc_ol(1)
+      end if
+      ifrom = 1
+      ito   = get_nb_RBDY3()
+      if (get_write_DOF_RBDY3())        call write_xxx_dof_RBDY3(1,ifrom,ito)
+      if( get_write_Vloc_Rloc_PRPRx() ) call write_xxx_Vloc_Rloc_PRPRx(1)
+      !WriteHDF5(nsteps)
+    end if
 
     !call postpro_during_computation_3D
 
