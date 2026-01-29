@@ -73,7 +73,7 @@
     double frame[9];
   } ;
 
-  extern void lmgc90_initialize(double dt, double theta);
+  extern void lmgc90_initialize(double dt, double theta, bool debug=false);
 
   extern void lmgc90_set_materials(int nb, double * densities);
   extern void lmgc90_add_one_tact_behav(char[5] name, char[30] law, int nb_p, double * params);

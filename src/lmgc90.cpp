@@ -17,7 +17,7 @@ extern "C" {
     };
     struct lmgc90_rigid_body_3D { double coor[3]; double frame[9]; };
     
-    void lmgc90_initialize(double dt, double theta);
+    void lmgc90_initialize(double dt, double theta, bool debug=false);
     void lmgc90_set_materials(int nb, double* densities);
     void lmgc90_add_one_tact_behav(char name[5], char law[30], int nb_p, double * params);
     void lmgc90_set_see_tables(void);
@@ -110,9 +110,9 @@ public:
     //│                    CORE SOLVER METHODS                                │
     //└───────────────────────────────────────────────────────────────────────┘
 
-    void initialize(double dt, double theta) {
+    void initialize(double dt, double theta, bool debug) {
         if (!is_initialized) {
-            lmgc90_initialize(dt, theta);
+            lmgc90_initialize(dt, theta, debug);
             is_initialized = true;
         }
     }
@@ -317,11 +317,11 @@ static std::unique_ptr<LMGC90Solver> g_solver;
 //│                    SIMPLIFIED PYTHON API WRAPPERS                     │
 //└───────────────────────────────────────────────────────────────────────┘
 
-void initialize_simulation(double dt = 1e-3, double theta = 0.5) {
+void initialize_simulation(double dt = 1e-3, double theta = 0.5, bool debug = false) {
     if (!g_solver) {
         g_solver = std::make_unique<LMGC90Solver>();
     }
-    g_solver->initialize(dt, theta);
+    g_solver->initialize(dt, theta, debug);
 }
 
 void set_materials(const std::vector<double>& densities) {
@@ -388,7 +388,7 @@ NB_MODULE(_lmgc90, m) {
     nb::class_<LMGC90Solver>(m, "LMGC90Solver")
         .def(nb::init<>(), "Create a new LMGC90 solver instance")
         .def("initialize", &LMGC90Solver::initialize, 
-             nb::arg("dt"), nb::arg("theta"),
+             nb::arg("dt"), nb::arg("theta"), nb::arg("debug"),
              "Initialize the solver")
         .def("set_materials", &LMGC90Solver::set_materials, 
              nb::arg("densities"),
@@ -442,7 +442,7 @@ NB_MODULE(_lmgc90, m) {
     
     // Core solver functions - these are the only ones used by solver.py
     m.def("initialize_simulation", &initialize_simulation, 
-          nb::arg("dt") = 1e-3, nb::arg("theta") = 0.5,
+          nb::arg("dt") = 1e-3, nb::arg("theta") = 0.5, nb::arg("debug") = false,
           "Initialize LMGC90 simulation");
     
     m.def("set_materials", &set_materials, 

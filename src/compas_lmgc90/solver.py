@@ -43,7 +43,7 @@ class Solver:
 
     """
 
-    def __init__(self, model, dt=1e-2, theta=0.5, density=2750.0):
+    def __init__(self, model, dt=1e-2, theta=0.5, density=2750.0, debug=False):
         # Data for LMGC90
         self.trimeshes = []  # Local mesh copies
         self.centroids = []  # Original global centroids
@@ -69,7 +69,7 @@ class Solver:
 
         # Create LMGC90 solver instance
         self.lmgc90 = _lmgc90.LMGC90Solver()
-        self.lmgc90.initialize(dt, theta)
+        self.lmgc90.initialize(dt, theta, debug)
 
     def _model_to_lmgc90(self):
         """Extract meshes and centroids from model."""

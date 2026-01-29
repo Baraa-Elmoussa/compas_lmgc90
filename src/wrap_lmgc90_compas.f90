@@ -49,6 +49,7 @@ module wrap_lmgc90_compas
 
   use utilities, only : logmes, &
                         faterr, &
+                        enable_logmes, &
                         disable_logmes
 
   use overall, only : max_internal_tact      , &
@@ -231,6 +232,9 @@ module wrap_lmgc90_compas
   logical            :: is_detec_init = .false.
   integer            :: detection_method = 0
 
+  ! output for debug purpose
+  logical :: debug = .false.
+
   public initialize      , &
          compute_one_step, &
          finalize
@@ -255,11 +259,17 @@ contains
   ! first : some simple functions to run a simulation !
   ! ------------------------------------------------- !
 
-  subroutine initialize(dt, theta) bind(c, name='lmgc90_initialize')
+  subroutine initialize(dt, theta, with_log) bind(c, name='lmgc90_initialize')
     implicit none
-    real(kind=8), intent(in), value :: dt, theta
+    real(kind=8)        , intent(in), value :: dt, theta
+    logical(kind=c_bool), intent(in), value :: with_log
 
-    !call disable_logmes()
+    debug = with_log
+    if( debug ) then
+      call enable_logmes()
+    else
+      call disable_logmes()
+    end if
 
     call active_diagonal_resolution_3D()
 

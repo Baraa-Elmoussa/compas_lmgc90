@@ -39,7 +39,7 @@ model = BlockModel.from_boxes(meshes)
 # Material density
 # Note: LMGC90 currently uses single material type, so only first density is applied
 # Per-block density support is planned for future LMGC90 versions
-solver = Solver(model, density=2750.0)  # Single density for all blocks (kg/m³)
+solver = Solver(model, density=2750.0, debug=True)  # Single density for all blocks (kg/m³)
 
 # Example: Per-block densities (API ready, LMGC90 limitation)
 # nb_blocks = len(list(model.elements()))
