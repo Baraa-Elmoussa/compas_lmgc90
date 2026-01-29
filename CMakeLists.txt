@@ -58,7 +58,7 @@ else()
     set(_RPATH "$ORIGIN")
 endif()
 FetchContent_Declare(lmgc90 GIT_REPOSITORY https://compas:glpat-to65i8oMIi3pD9miaj0nBW86MQp1OjduCA.01.0y1p3o8t8@git-xen.lmgc.univ-montp2.fr/lmgc90/lmgc90_dev.git
-                            GIT_TAG 51d5addd12c4ea0f3614c908b86c5907d80287c6
+                            GIT_TAG 9d1a4d394b122e131a40d4e05a2a4053c054fa68
 )
 #FetchContent_Declare(lmgc90 SOURCE_DIR /Users/mozul/WORK/LMGC90/sources/lmgc90_dev)
 

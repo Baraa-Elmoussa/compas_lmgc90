@@ -43,7 +43,7 @@ solver.set_supports(z_threshold=0.4)
 solver.apply_velocity(
     block_index=10,
     component="Vz",
-    value=np.array([[0.0, 0.5, 1.0], [0.0, 0.0, 1e-2]]),
+    value=np.array([[0.0, 0.49999, 0.5], [0.0, 0.0, 1e-3]]),
 )
 
 # Contact law
