@@ -40,10 +40,15 @@ solver = Solver(model, density=2750.0)
 solver.set_supports(z_threshold=0.4)
 
 # Imposed velocity
-solver.apply_velocity(
+#solver.apply_velocity(
+#    block_index=10,
+#    component="Vz",
+#    value=np.array([[0.0, 0.49999, 0.5], [0.0, 0.0, 1e-3]]),
+#)
+solver.apply_force(
     block_index=10,
-    component="Vz",
-    value=np.array([[0.0, 0.49999, 0.5], [0.0, 0.0, 1e-3]]),
+    component="Fz",
+    value=np.array([[0.0, 0.49999, 0.5], [1e3, 1e3, 0e0]]),
 )
 
 # Contact law

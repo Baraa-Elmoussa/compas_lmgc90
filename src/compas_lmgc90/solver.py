@@ -58,6 +58,7 @@ class Solver:
 
         # Drvdof management
         self.v_drvdof = defaultdict( dict )
+        self.f_drvdof = defaultdict( dict )
 
         # Handle density: single value or list
         if isinstance(density, (list, tuple)):
@@ -97,15 +98,19 @@ class Solver:
             f_flat = [item + 1 for sublist in f for item in sublist]  # 1-indexed
             mat = self.d2n[ self.densities[i] ]
             # driven dof managment
-            nb_f = 0
-            if i in self.v_drvdof.keys():
-              nb_v = len(self.v_drvdof[i])
-            vel_ddof = True
+
+            nb_f = len(self.f_drvdof[i]) if i in self.f_drvdof.keys() else 0
+            nb_v = len(self.v_drvdof[i]) if i in self.v_drvdof.keys() else 0
 
             self.lmgc90.set_one_polyr(mat, self.centroids[i], f_flat, v_flat, nb_v, nb_f)
+
             for i_dof, drv_vals in self.v_drvdof[i].items():
               evol = drv_vals.shape[0] == 2
-              self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), vel_ddof, evol)
+              self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), True, evol)
+            vel_ddof = True
+            for i_dof, drv_vals in self.f_drvdof[i].items():
+              evol = drv_vals.shape[0] == 2
+              self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), False, evol)
 
     def _get_initial_state(self):
         """Retrieve and store initial state from LMGC90."""
@@ -194,24 +199,7 @@ class Solver:
           self.v_drvdof[i] = { i_dof:value for i_dof in range(1,7) }
         return self
 
-    def apply_velocity(self, block_index, component, value=0.):
-        """Set support flags from model elements.
-
-        Parameters
-        ----------
-        Block_Index: integer
-            The index of block on which to apply velocity
-        Global_Component: string (of size 2)
-            The component on which to apply velocity must be among (Vx, Vy, Vz, Rx, Ry, Rz)
-        Value: float or array of floats
-            If a single float, imposed value over time
-            If 1D array, must be of size 6 and implements the time function
-              V(t) = [v[0] + v[1] * cos(v[2]*t+v[3]) ] * min(1, v[4]+v[5]*t)
-            If a 2D array, must be of size [2,nb] with nb >=2 to provide velocity
-              at different times.
-        """
-
-        cmp_s2i = { 'Vx':1, 'Vy':2, 'Vz':3, 'Rx':4, 'Ry':5, 'Rz':6 }
+    def _drvdof_check(self, value):
 
         # First, attempt to make a numpy array
         if not isinstance(value, np.ndarray):
@@ -230,8 +218,49 @@ class Solver:
         else:
           assert value.shape[0] == 2 and value.shape[1] > 1, "Value array must be of shape [2xn], n>1"
 
-        self.v_drvdof[block_index][cmp_s2i[component]] = value
+        return value
 
+    def apply_velocity(self, block_index, component, value=0.):
+        """Set an imposed velocity on a block
+
+        Parameters
+        ----------
+        Block_Index: integer
+            The index of block on which to apply velocity
+        Global_Component: string (of size 2)
+            The component on which to apply velocity must be among (Vx, Vy, Vz, Rx, Ry, Rz)
+        Value: float or array of floats
+            If a single float, imposed value over time
+            If 1D array, must be of size 6 and implements the time function
+              V(t) = [v[0] + v[1] * cos(v[2]*t+v[3]) ] * min(1, v[4]+v[5]*t)
+            If a 2D array, must be of size [2,nb] with nb >=2 to provide velocity
+              at different times.
+        """
+
+        cmp_s2i = { 'Vx':1, 'Vy':2, 'Vz':3, 'Rx':4, 'Ry':5, 'Rz':6 }
+
+        self.v_drvdof[block_index][cmp_s2i[component]] = self._drvdof_check(value)
+
+    def apply_force(self, block_index, component, value=0.):
+        """Add an external force on a block
+
+        Parameters
+        ----------
+        Block_Index: integer
+            The index of block on which to apply velocity
+        Global_Component: string (of size 2)
+            The component on which to apply force must be among (Fx, Fy, Fz, Mx, My, Mz)
+        Value: float or array of floats
+            If a single float, imposed value over time
+            If 1D array, must be of size 6 and implements the time function
+              F(t) = [f[0] + f[1] * cos(f[2]*t+f[3]) ] * min(1, f[4]+f[5]*t)
+            If a 2D array, must be of size [2,nb] with nb >=2 to provide force
+              at different times.
+        """
+
+        cmp_s2i = { 'Fx':1, 'Fy':2, 'Fz':3, 'Mx':4, 'My':5, 'Mz':6 }
+
+        self.f_drvdof[block_index][cmp_s2i[component]] = self._drvdof_check(value)
 
     def contact_law(self, law, coeffs):
         """Set contact law parameters.
