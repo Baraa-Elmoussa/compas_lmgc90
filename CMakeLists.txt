@@ -1,11 +1,40 @@
 cmake_minimum_required(VERSION 3.15)
+
+# ===================================================================
+# macOS: Auto-detect Homebrew GCC/gfortran before project()
+# ===================================================================
+if(APPLE AND NOT DEFINED CMAKE_C_COMPILER)
+    # Find Homebrew prefix
+    execute_process(
+        COMMAND brew --prefix gcc
+        OUTPUT_VARIABLE HOMEBREW_GCC_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(HOMEBREW_GCC_PREFIX)
+        # Find the latest gfortran version
+        file(GLOB GFORTRAN_VERSIONS "${HOMEBREW_GCC_PREFIX}/bin/gfortran-*")
+        if(GFORTRAN_VERSIONS)
+            list(SORT GFORTRAN_VERSIONS)
+            list(GET GFORTRAN_VERSIONS -1 GFORTRAN_PATH)
+            get_filename_component(GFORTRAN_NAME ${GFORTRAN_PATH} NAME)
+            string(REGEX REPLACE "gfortran-" "" GCC_VERSION "${GFORTRAN_NAME}")
+            
+            set(CMAKE_C_COMPILER "${HOMEBREW_GCC_PREFIX}/bin/gcc-${GCC_VERSION}" CACHE STRING "")
+            set(CMAKE_CXX_COMPILER "${HOMEBREW_GCC_PREFIX}/bin/g++-${GCC_VERSION}" CACHE STRING "")
+            set(CMAKE_Fortran_COMPILER "${HOMEBREW_GCC_PREFIX}/bin/gfortran-${GCC_VERSION}" CACHE STRING "")
+            message(STATUS "macOS: Auto-detected Homebrew GCC ${GCC_VERSION}")
+        endif()
+    endif()
+endif()
+
 project(compas_lmgc90 LANGUAGES CXX Fortran C)
 
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(ExternalProject)
+include(FetchContent)
 
 message(STATUS "===============================================")
 message(STATUS "   COMPAS LMGC90 Unified Build System")
@@ -15,53 +44,36 @@ message(STATUS "===============================================")
 # STEP 1: Build LMGC90 Core Library
 # ===================================================================
 
-set(LMGC_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/lmgc90_core")
-set(LMGC_LIB_PATH "${LMGC_BUILD_DIR}/lib")
-set(LMGC_INCLUDE "${LMGC_BUILD_DIR}/modules")
-
-# Determine compilers (always use GCC - no oneAPI environment needed!)
+# Determine compilers
 set(USING_INTEL_ONEAPI FALSE)
-set(CMAKE_C_COMPILER_ARG "gcc")
-set(CMAKE_CXX_COMPILER_ARG "g++")
 set(BLAS_VENDOR_ARG "")
 message(STATUS "Using GCC compilers (no oneAPI environment required)")
 
-ExternalProject_Add(lmgc90_core
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/lmgc90_dev-fortran_lib
-    BINARY_DIR ${LMGC_BUILD_DIR}
-    CMAKE_ARGS
-        -DCMAKE_Fortran_COMPILER=gfortran
-        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER_ARG}
-        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER_ARG}
-        -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        -DCMAKE_CXX_FLAGS=-Wno-deprecated
-        -DBUILD_ChiPy=OFF
-        -DBUILD_PRE=OFF
-        -DBUILD_POST=OFF
-        -DNO_DOXYGEN=ON
-        -DBUILD_MATLIB=ON
-        -DSPARSE_LIBRARY=none
-        -DWITH_HDF5=OFF
-        -DBUILD_STANDALONE=OFF
-        -DBUILD_STANDALONE_MPI=OFF
-        -DCMAKE_SKIP_RPATH=OFF
-    BUILD_COMMAND ${CMAKE_COMMAND} --build .
-    INSTALL_COMMAND ""
-    BUILD_ALWAYS OFF
+# RPATH handling: $ORIGIN for Linux, @loader_path for macOS
+# must be set before adding LMGC90 to inherit the correct value
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+    set(_RPATH "@loader_path")
+else()
+    set(_RPATH "$ORIGIN")
+endif()
+FetchContent_Declare(lmgc90 GIT_REPOSITORY https://compas:glpat-to65i8oMIi3pD9miaj0nBW86MQp1OjduCA.01.0y1p3o8t8@git-xen.lmgc.univ-montp2.fr/lmgc90/lmgc90_dev.git
+                            GIT_TAG compas_dev
 )
+#FetchContent_Declare(lmgc90 SOURCE_DIR /Users/mozul/WORK/LMGC90/sources/lmgc90_dev)
 
-# Post-build: consolidate libraries
-ExternalProject_Add_Step(lmgc90_core consolidate_libs
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${LMGC_LIB_PATH}
-    COMMAND bash -c "find ${LMGC_BUILD_DIR} -name '*.a' ! -path '${LMGC_LIB_PATH}/*' | xargs -I{} cp -n {} ${LMGC_LIB_PATH}/ || true"
-    DEPENDEES build
-    DEPENDERS install
-    ALWAYS FALSE
-)
+set( LMGC90_BUILD_ChiPy    OFF    CACHE INTERNAL "" FORCE)
+set( LMGC90_BUILD_PRE      OFF    CACHE INTERNAL "" FORCE)
+set( LMGC90_BUILD_POST     OFF    CACHE INTERNAL "" FORCE)
+set( LMGC90_ENABLE_TESTING OFF    CACHE INTERNAL "" FORCE)
+set( LMGC90_ENABLE_DOC     OFF    CACHE INTERNAL "" FORCE)
+set( LMGC90_WITH_HDF5      OFF    CACHE INTERNAL "" FORCE)
+set( LMGC90_MATLIB_VERSION "none" CACHE INTERNAL "" FORCE)
+set( LMGC90_SPARSE_LIBRARY "none" CACHE INTERNAL "" FORCE)
+set( LMGC90_BUILD_SHARED_LIBS ON  CACHE INTERNAL "" FORCE)
+set( LMGC90_BUILD_Fortran_LIB ON  CACHE INTERNAL "" FORCE)
 
-message(STATUS "LMGC90 library path: ${LMGC_LIB_PATH}")
-message(STATUS "LMGC90 include path: ${LMGC_INCLUDE}")
+FetchContent_MakeAvailable(lmgc90)
 
 # ===================================================================
 # STEP 2: Build Python Wrapper
@@ -72,80 +84,53 @@ find_package(Python 3.8 REQUIRED COMPONENTS Interpreter Development.Module Devel
 find_package(nanobind CONFIG REQUIRED)
 
 # Compile the Fortran wrapper as a shared library
-add_library(wrap_lmgc90_compas OBJECT 
-    external/lmgc90_dev-fortran_lib/src/Sandbox/Compas/wrap_lmgc90_compas.f90
+add_library(wrap_lmgc90_compas SHARED
+    src/wrap_lmgc90_compas.f90
 )
 
-set_property(TARGET wrap_lmgc90_compas PROPERTY POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fPIC")
-
 # Ensure LMGC90 core is built first
-add_dependencies(wrap_lmgc90_compas lmgc90_core)
+target_link_libraries(wrap_lmgc90_compas PRIVATE lmgc90_F_lib)
 
-target_include_directories(wrap_lmgc90_compas PRIVATE ${LMGC_INCLUDE})
 
 # Build nanobind module
 nanobind_add_module(_lmgc90 STABLE_ABI NB_STATIC src/lmgc90.cpp)
 
 # Ensure LMGC90 core is built before Python modules
-add_dependencies(_lmgc90 lmgc90_core)
+target_link_libraries(_lmgc90 PRIVATE wrap_lmgc90_compas)
 
-target_include_directories(_lmgc90 PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/lmgc90_dev-fortran_lib/src/Sandbox/Compas
-)
 
-# Find BLAS/LAPACK (defaults to system OpenBLAS/LAPACK when available)
-find_package(BLAS REQUIRED)
-find_package(LAPACK REQUIRED)
+## Find BLAS/LAPACK (defaults to system OpenBLAS/LAPACK when available)
+#find_package(BLAS REQUIRED)
+#find_package(LAPACK REQUIRED)
 
 message(STATUS "Using BLAS libraries: ${BLAS_LIBRARIES}")
 message(STATUS "Using LAPACK libraries: ${LAPACK_LIBRARIES}")
 
-# Link against LMGC90 and the Fortran wrapper
-target_link_libraries(_lmgc90 PRIVATE 
-    wrap_lmgc90_compas
-    -L${LMGC_LIB_PATH}
-    -Wl,--start-group
-    -llmgc_core_shared -llmgc_core_rigid_3d -llmgc_core_contact_3d 
-    -llmgc_core_contactor_3d -llmgc_core_kernel_3d -llmgc_core_post_3d 
-    -llmgc_core_utils -llmgc_core_mailx -llmgc_core_shared_contribs 
-    -llmgc_core_other_contribs -llmgc_core_utils_contribs -llmgc_ann 
-    -llmgc_clipper -lpredicates -llibrtree -lminpack -ldemmefi 
-    -llmgc_exception -llmgc_core_mbs3d -llmgc_core_mbs2d 
-    -llmgc_bindings_FEM -llmgc_bindings_user -llmgc_bindings_sparse_la 
-    -llmgc_bindings_MBS -lClipper2 -lClipper2Z -lClipper2utils 
-    -lClipper2Zutils -lann_euclid -lann_manhattan -lmatlib
-    -Wl,--end-group
-    ${BLAS_LIBRARIES}
-    ${LAPACK_LIBRARIES}
-    gfortran
-    -lpthread -lm -ldl
+
+install(TARGETS _lmgc90
+        LIBRARY DESTINATION compas_lmgc90
+        RUNTIME DESTINATION compas_lmgc90
+        ARCHIVE DESTINATION compas_lmgc90
+)
+install(TARGETS wrap_lmgc90_compas
+        LIBRARY DESTINATION compas_lmgc90
+        RUNTIME DESTINATION compas_lmgc90
+        ARCHIVE DESTINATION compas_lmgc90
 )
 
-# Set RPATH so the module can find LMGC90 libraries at runtime
-set_target_properties(_lmgc90 PROPERTIES
-    BUILD_RPATH "${LMGC_LIB_PATH}"
-    INSTALL_RPATH "$ORIGIN/../external/lmgc90_libs"
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-)
+set_target_properties(_lmgc90 PROPERTIES INSTALL_RPATH "${_RPATH}")
+set_target_properties(wrap_lmgc90_compas PROPERTIES INSTALL_RPATH "${_RPATH}")
 
-install(TARGETS _lmgc90 LIBRARY DESTINATION compas_lmgc90)
-
-# Install LMGC90 shared libraries with the package
-# Use install(CODE) because the libraries don't exist at configure time
-install(CODE "
-    file(GLOB LMGC_SO_FILES \"${LMGC_LIB_PATH}/*.so\" \"${LMGC_LIB_PATH}/*.so.*\")
-    if(LMGC_SO_FILES)
-        file(INSTALL \${LMGC_SO_FILES}
-             DESTINATION \"\${CMAKE_INSTALL_PREFIX}/external/lmgc90_libs\"
-             FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
-                             GROUP_READ GROUP_EXECUTE 
-                             WORLD_READ WORLD_EXECUTE)
-        message(STATUS \"Installed LMGC90 shared libraries\")
-    else()
-        message(WARNING \"No LMGC90 shared libraries found in ${LMGC_LIB_PATH}\")
-    endif()
-")
+# install of needed target of LMGC90 and reset rpath
+set(LMGC90_DEPS lmgc90_F_lib demmefi Clipper2 minpack ann_euclid ann_manhattan librtree predicates)
+foreach( LMGC90_DEP ${LMGC90_DEPS} )
+  install(TARGETS ${LMGC90_DEP}
+          LIBRARY DESTINATION compas_lmgc90
+          RUNTIME DESTINATION compas_lmgc90
+          ARCHIVE DESTINATION compas_lmgc90
+  )
+  set_target_properties(${LMGC90_DEP} PROPERTIES INSTALL_RPATH "${_RPATH}")
+endforeach( LMGC90_DEP ${LMGC90_DEPS} )
 
 message(STATUS "===============================================")
 message(STATUS "Build Configuration:")

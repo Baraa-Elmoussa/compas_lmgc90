@@ -6,7 +6,12 @@ dependencies:
   - python =3.9.10
   - pip
   - compas
-  - compilers
+  - git
+  - binutils
+  - gfortran
+  - gcc
+  - gxx
+  - openblas
   - pip:
       - -r requirements-dev.txt
 #      - .

@@ -1,3 +1,6 @@
+from collections import defaultdict
+from pathlib import Path
+
 import numpy as np
 
 from compas.geometry import Line
@@ -17,6 +20,12 @@ class Solver:
         Time step for the simulation.
     theta : float, optional
         Theta parameter for LMGC90 time integration scheme.
+    density : float or list of float, optional
+        Material density in kg/m³. Can be a single value (applied to all blocks)
+        or a list of densities (one per block). Default is 2750.0 (stone).
+        Note: LMGC90 currently uses a single material type, so only the first
+        density value is applied to all blocks. Per-block density support is
+        planned for future LMGC90 versions.
 
     Attributes
     ----------
@@ -26,6 +35,8 @@ class Solver:
         Original global centroids of each block.
     supports : list of bool
         Support flags for each block.
+    densities : list of float
+        Material densities in kg/m³, one per block.
     model : :class:`compas.datastructures.Assembly`
         The input assembly model.
     lmgc90 : :class:`_lmgc90.LMGC90Solver`
@@ -33,7 +44,7 @@ class Solver:
 
     """
 
-    def __init__(self, model, dt=1e-2, theta=0.5):
+    def __init__(self, model, dt=1e-2, theta=0.5, density=2750.0, debug=False):
         # Data for LMGC90
         self.trimeshes = []  # Local mesh copies
         self.centroids = []  # Original global centroids
@@ -45,9 +56,26 @@ class Solver:
         self.model = model
         self._model_to_lmgc90()
 
+        # Drvdof management
+        self.v_drvdof = defaultdict( dict )
+        self.f_drvdof = defaultdict( dict )
+
+        # Handle density: single value or list
+        if isinstance(density, (list, tuple)):
+            if len(density) != len(self.trimeshes):
+                raise ValueError(f"Number of densities ({len(density)}) must match number of blocks ({len(self.trimeshes)})")
+            self.densities = list(density)
+        else:
+            # Single density for all blocks
+            self.densities = [float(density)] * len(self.trimeshes)
+
+        # In debug mode, the OUTBOX directory must exist...
+        outbox = Path('./OUTBOX')
+        outbox.mkdir(exist_ok=True)
         # Create LMGC90 solver instance
         self.lmgc90 = _lmgc90.LMGC90Solver()
-        self.lmgc90.initialize(dt, theta)
+        self.lmgc90.initialize(dt, theta, debug)
+
 
     def _model_to_lmgc90(self):
         """Extract meshes and centroids from model."""
@@ -68,7 +96,21 @@ class Solver:
             v, f = mesh.to_vertices_and_faces(True)
             v_flat = [item for sublist in v for item in sublist]
             f_flat = [item + 1 for sublist in f for item in sublist]  # 1-indexed
-            self.lmgc90.set_one_polyr(self.centroids[i], f_flat, v_flat, self.supports[i])
+            mat = self.d2n[ self.densities[i] ]
+            # driven dof managment
+
+            nb_f = len(self.f_drvdof[i]) if i in self.f_drvdof.keys() else 0
+            nb_v = len(self.v_drvdof[i]) if i in self.v_drvdof.keys() else 0
+
+            self.lmgc90.set_one_polyr(mat, self.centroids[i], f_flat, v_flat, nb_v, nb_f)
+
+            for i_dof, drv_vals in self.v_drvdof[i].items():
+              evol = drv_vals.shape[0] == 2
+              self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), True, evol)
+            vel_ddof = True
+            for i_dof, drv_vals in self.f_drvdof[i].items():
+              evol = drv_vals.shape[0] == 2
+              self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), False, evol)
 
     def _get_initial_state(self):
         """Retrieve and store initial state from LMGC90."""
@@ -128,6 +170,13 @@ class Solver:
         self.supports = []
         for centroid in self.centroids:
             self.supports.append(centroid[2] < z_threshold)
+
+        for i, s in enumerate(self.supports):
+          if not s:
+            continue
+          value = np.zeros([6])
+          self.v_drvdof[i] = { i_dof:value for i_dof in range(1,7) }
+
         return self
 
     def set_supports_from_model(self):
@@ -142,9 +191,78 @@ class Solver:
         self.supports = []
         for element in self.model.elements():
             self.supports.append(getattr(element, "is_support", False))
+
+        for i, s in enumerate(self.supports):
+          if not s:
+            continue
+          value = np.zeros([6])
+          self.v_drvdof[i] = { i_dof:value for i_dof in range(1,7) }
         return self
 
-    def contact_law(self, name_of_contact_law, coeff):
+    def _drvdof_check(self, value):
+
+        # First, attempt to make a numpy array
+        if not isinstance(value, np.ndarray):
+          if isinstance(value, float):
+            v = np.zeros( [1,6] )
+            v[0,0] = value
+            v[0,4] = 1.e0
+          else:
+            v = np.array( value )
+          value = v
+
+        # Second, check that it is usable
+        assert value.ndim == 2, "Value array as wrong dimensions"
+        if value.shape[0] == 1:
+          assert value.size == 6, "Value array must be of size 6"
+        else:
+          assert value.shape[0] == 2 and value.shape[1] > 1, "Value array must be of shape [2xn], n>1"
+
+        return value
+
+    def apply_velocity(self, block_index, component, value=0.):
+        """Set an imposed velocity on a block
+
+        Parameters
+        ----------
+        Block_Index: integer
+            The index of block on which to apply velocity
+        Global_Component: string (of size 2)
+            The component on which to apply velocity must be among (Vx, Vy, Vz, Rx, Ry, Rz)
+        Value: float or array of floats
+            If a single float, imposed value over time
+            If 1D array, must be of size 6 and implements the time function
+              V(t) = [v[0] + v[1] * cos(v[2]*t+v[3]) ] * min(1, v[4]+v[5]*t)
+            If a 2D array, must be of size [2,nb] with nb >=2 to provide velocity
+              at different times.
+        """
+
+        cmp_s2i = { 'Vx':1, 'Vy':2, 'Vz':3, 'Rx':4, 'Ry':5, 'Rz':6 }
+
+        self.v_drvdof[block_index][cmp_s2i[component]] = self._drvdof_check(value)
+
+    def apply_force(self, block_index, component, value=0.):
+        """Add an external force on a block
+
+        Parameters
+        ----------
+        Block_Index: integer
+            The index of block on which to apply velocity
+        Global_Component: string (of size 2)
+            The component on which to apply force must be among (Fx, Fy, Fz, Mx, My, Mz)
+        Value: float or array of floats
+            If a single float, imposed value over time
+            If 1D array, must be of size 6 and implements the time function
+              F(t) = [f[0] + f[1] * cos(f[2]*t+f[3]) ] * min(1, f[4]+f[5]*t)
+            If a 2D array, must be of size [2,nb] with nb >=2 to provide force
+              at different times.
+        """
+
+        cmp_s2i = { 'Fx':1, 'Fy':2, 'Fz':3, 'Mx':4, 'My':5, 'Mz':6 }
+
+        self.f_drvdof[block_index][cmp_s2i[component]] = self._drvdof_check(value)
+
+    def contact_law(self, law, coeffs):
         """Set contact law parameters.
 
         Parameters
@@ -154,12 +272,11 @@ class Solver:
         coeff : float
             Coefficient for the contact law.
 
-        Notes
-        -----
-        This method is not yet implemented.
-
         """
-        # _lmgc90.contact_law("name_of_contact_law", coeff)
+        name = "iqsc0"
+        coeffs = [coeffs] if isinstance(coeffs, float) else coeffs
+        self.lmgc90.add_one_tact_behav(name, law, coeffs)
+
 
     def preprocess(self):
         """Initialize LMGC90 simulation.
@@ -168,8 +285,15 @@ class Solver:
         then retrieves the initial state from LMGC90.
 
         """
-        self.lmgc90.set_materials(1)
-        self.lmgc90.set_tact_behavs(1)
+
+        # materials are identified by a 5 characters string and a densisty:
+        # density to name dic generation
+        d2n = np.unique(self.densities)
+        if len(d2n) > 9999:
+          raise ValueError("Too many materials for LMGC90")
+        self.d2n = { d : f"s{i+1:0>4}" for i, d in enumerate(d2n) }
+
+        self.lmgc90.set_materials(np.fromiter(self.d2n.keys(), dtype=float))
         self.lmgc90.set_see_tables()
         self.lmgc90.set_nb_bodies(len(self.trimeshes))
         self._set_geometry()

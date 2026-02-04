@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core >=0.10", "nanobind >=1.3.2"]
+requires = ["scikit-build-core >=0.10", "nanobind >=1.3.2", "cmake", "ninja"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -45,7 +45,6 @@ dev = [
     "wheel",
     "scikit-build-core",
     "nanobind",
-    "cmake",
     "build",
     "compas_viewer",
 ]
@@ -103,6 +102,19 @@ cmake.build-type = "Release"
 [tool.scikit-build.metadata.version]
 provider = "scikit_build_core.metadata.regex"
 input = "src/compas_lmgc90/__init__.py"
+
+[[tool.scikit-build.overrides]]
+if.platform-system = "^win32"
+cmake.args = ["-G", "Ninja"]
+
+[[tool.scikit-build.overrides]]
+if.platform-system = "^darwin"
+cmake.define.CMAKE_C_COMPILER = "clang"
+cmake.define.CMAKE_CXX_COMPILER = "clang++"
+cmake.define.CMAKE_Fortran_COMPILER = "gfortran"
+#cmake.define.CMAKE_C_COMPILER = "/opt/homebrew/bin/gcc-15"
+#cmake.define.CMAKE_CXX_COMPILER = "/opt/homebrew/bin/g++-15"
+#cmake.define.CMAKE_Fortran_COMPILER = "/opt/homebrew/bin/gfortran"
 
 [tool.scikit-build.cmake.define]
 CMAKE_POLICY_DEFAULT_CMP0135 = "NEW"

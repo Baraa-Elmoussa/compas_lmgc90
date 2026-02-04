@@ -17,12 +17,13 @@ extern "C" {
     };
     struct lmgc90_rigid_body_3D { double coor[3]; double frame[9]; };
     
-    void lmgc90_initialize(double dt, double theta);
-    void lmgc90_set_materials(int nb);
-    void lmgc90_set_tact_behavs(int nb);
+    void lmgc90_initialize(double dt, double theta, bool debug=false);
+    void lmgc90_set_materials(int nb, double* densities);
+    void lmgc90_add_one_tact_behav(char name[5], char law[30], int nb_p, double * params);
     void lmgc90_set_see_tables(void);
     void lmgc90_set_nb_bodies(int nb);
-    void lmgc90_set_one_polyr(double coor[3], int* faces, int nb_faces, double* vertices, int nb_v, bool fixed);
+    void lmgc90_set_one_polyr(char behav[5], double coor[3], int* faces, int nb_faces, double* vertices, int nb_v, int nb_v_ddof, int nb_f_ddof);
+    void lmgc90_set_drvdof(int i_bdyty, int i_dof, double * drv_values, int drv_size, bool velocity, bool evolution);
     void lmgc90_close_before_computing(void);
     void lmgc90_compute_one_step(void);
     void lmgc90_finalize(void);
@@ -109,19 +110,21 @@ public:
     //│                    CORE SOLVER METHODS                                │
     //└───────────────────────────────────────────────────────────────────────┘
 
-    void initialize(double dt, double theta) {
+    void initialize(double dt, double theta, bool debug) {
         if (!is_initialized) {
-            lmgc90_initialize(dt, theta);
+            lmgc90_initialize(dt, theta, debug);
             is_initialized = true;
         }
     }
 
-    void set_materials(int nb) {
-        lmgc90_set_materials(nb);
+    void set_materials(const std::vector<double>& densities) {
+        lmgc90_set_materials(densities.size(), const_cast<double*>(densities.data()));
     }
 
-    void set_tact_behavs(int nb) {
-        lmgc90_set_tact_behavs(nb);
+    void add_one_tact_behav(std::string name, std::string law, std::vector<double>& params) {
+        char law_name[30] = { ' ' };
+        strncpy(law_name, law.c_str(), law.size()); 
+        lmgc90_add_one_tact_behav(name.data(), law_name, params.size(), const_cast<double*>(params.data()));
     }
 
     void set_see_tables() {
@@ -132,7 +135,7 @@ public:
         lmgc90_set_nb_bodies(nb);
     }
 
-    void set_one_polyr(std::vector<double> coor, std::vector<int> faces, std::vector<double> vertices, bool fixed) {
+    void set_one_polyr(std::string mat, std::vector<double> coor, std::vector<int> faces, std::vector<double> vertices, int nb_v, int nb_f) {
         if (coor.size() != 3) {
             throw std::runtime_error("coor must have 3 elements [x, y, z]");
         }
@@ -146,7 +149,11 @@ public:
         int nb_faces = faces.size() / 3;
         int nb_vertices = vertices.size() / 3;
         
-        lmgc90_set_one_polyr(coor.data(), faces.data(), nb_faces, vertices.data(), nb_vertices, fixed);
+        lmgc90_set_one_polyr(mat.data(), coor.data(), faces.data(), nb_faces, vertices.data(), nb_vertices, nb_v, nb_f);
+    }
+
+    void set_drvdof(int i_bdyty, int i_dof, std::vector<double> drv_values, bool velocity, bool evolution) {
+        lmgc90_set_drvdof(i_bdyty, i_dof, drv_values.data(), drv_values.size(), velocity, evolution);
     }
 
     void close_before_computing() {
@@ -310,21 +317,21 @@ static std::unique_ptr<LMGC90Solver> g_solver;
 //│                    SIMPLIFIED PYTHON API WRAPPERS                     │
 //└───────────────────────────────────────────────────────────────────────┘
 
-void initialize_simulation(double dt = 1e-3, double theta = 0.5) {
+void initialize_simulation(double dt = 1e-3, double theta = 0.5, bool debug = false) {
     if (!g_solver) {
         g_solver = std::make_unique<LMGC90Solver>();
     }
-    g_solver->initialize(dt, theta);
+    g_solver->initialize(dt, theta, debug);
 }
 
-void set_materials(int nb) {
+void set_materials(const std::vector<double>& densities) {
     if (!g_solver) throw std::runtime_error("Solver not initialized");
-    g_solver->set_materials(nb);
+    g_solver->set_materials(densities);
 }
 
-void set_tact_behavs(int nb) {
+void add_one_tact_behav(std::string name, std::string law, std::vector<double>& params) {
     if (!g_solver) throw std::runtime_error("Solver not initialized");
-    g_solver->set_tact_behavs(nb);
+    g_solver->add_one_tact_behav(name, law, params);
 }
 
 void set_see_tables() {
@@ -337,9 +344,14 @@ void set_nb_bodies(int nb) {
     g_solver->set_nb_bodies(nb);
 }
 
-void set_one_polyr(std::vector<double> coor, std::vector<int> faces, std::vector<double> vertices, bool fixed) {
+void set_one_polyr(std::string mat, std::vector<double> coor, std::vector<int> faces, std::vector<double> vertices, int nb_v, int nb_f) {
     if (!g_solver) throw std::runtime_error("Solver not initialized");
-    g_solver->set_one_polyr(coor, faces, vertices, fixed);
+    g_solver->set_one_polyr(mat, coor, faces, vertices, nb_v, nb_f);
+}
+
+void set_drvdof(int i_bdyty, int i_dof, std::vector<double> drv_values, bool velocity, bool evolution) {
+    if (!g_solver) throw std::runtime_error("Solver not initialized");
+    g_solver->set_drvdof(i_bdyty, i_dof, drv_values, velocity, evolution);
 }
 
 void close_before_computing() {
@@ -376,14 +388,19 @@ NB_MODULE(_lmgc90, m) {
     nb::class_<LMGC90Solver>(m, "LMGC90Solver")
         .def(nb::init<>(), "Create a new LMGC90 solver instance")
         .def("initialize", &LMGC90Solver::initialize, 
-             nb::arg("dt"), nb::arg("theta"),
+             nb::arg("dt"), nb::arg("theta"), nb::arg("debug"),
              "Initialize the solver")
-        .def("set_materials", &LMGC90Solver::set_materials, nb::arg("nb"))
-        .def("set_tact_behavs", &LMGC90Solver::set_tact_behavs, nb::arg("nb"))
+        .def("set_materials", &LMGC90Solver::set_materials, 
+             nb::arg("densities"),
+             "Set materials with per-block densities (kg/m³)")
+        .def("add_one_tact_behav", &LMGC90Solver::add_one_tact_behav,
+             nb::arg("name"), nb::arg("law"), nb::arg("params"))
         .def("set_see_tables", &LMGC90Solver::set_see_tables)
         .def("set_nb_bodies", &LMGC90Solver::set_nb_bodies, nb::arg("nb"))
         .def("set_one_polyr", &LMGC90Solver::set_one_polyr,
-             nb::arg("coor"), nb::arg("faces"), nb::arg("vertices"), nb::arg("fixed") = false)
+             nb::arg("mat"), nb::arg("coor"), nb::arg("faces"), nb::arg("vertices"), nb::arg("nb_v"), nb::arg("nb_f"))
+        .def("set_drvdof", &LMGC90Solver::set_drvdof,
+             nb::arg("i_bdyty"), nb::arg("i_dof"), nb::arg("drv_values"), nb::arg("velocity"), nb::arg("evolution"))
         .def("close_before_computing", &LMGC90Solver::close_before_computing)
         .def("get_initial_state", &LMGC90Solver::get_initial_state)
         .def("compute_one_step", &LMGC90Solver::compute_one_step)
@@ -425,14 +442,16 @@ NB_MODULE(_lmgc90, m) {
     
     // Core solver functions - these are the only ones used by solver.py
     m.def("initialize_simulation", &initialize_simulation, 
-          nb::arg("dt") = 1e-3, nb::arg("theta") = 0.5,
+          nb::arg("dt") = 1e-3, nb::arg("theta") = 0.5, nb::arg("debug") = false,
           "Initialize LMGC90 simulation");
     
-    m.def("set_materials", &set_materials, nb::arg("nb"),
-          "Set number of materials");
+    m.def("set_materials", &set_materials, 
+          nb::arg("densities"),
+          "Set materials with per-block densities (kg/m³)");
     
-    m.def("set_tact_behavs", &set_tact_behavs, nb::arg("nb"),
-          "Set number of contact behaviors");
+    m.def("add_one_tact_behav", &add_one_tact_behav,
+          nb::arg("name"), nb::arg("law"), nb::arg("params"),
+          "Set one contact law parameters" );
     
     m.def("set_see_tables", &set_see_tables,
           "Configure contact detection tables");
@@ -441,8 +460,11 @@ NB_MODULE(_lmgc90, m) {
           "Set number of rigid bodies");
     
     m.def("set_one_polyr", &set_one_polyr, 
-          nb::arg("coor"), nb::arg("faces"), nb::arg("vertices"), nb::arg("fixed") = false,
+          nb::arg("mat"), nb::arg("coor"), nb::arg("faces"), nb::arg("vertices"), nb::arg("nb_v"), nb::arg("nb_f"),
           "Add one polyhedral body");
+    m.def("set_drvdof", &set_drvdof,
+          nb::arg("i_bdyty"), nb::arg("i_dof"), nb::arg("drv_values"), nb::arg("velocity"), nb::arg("evolution"),
+          "Set one driven dof (velocity or force) of one  polyhedral body");
     
     m.def("close_before_computing", &close_before_computing,
           "Finalize initialization before simulation");
