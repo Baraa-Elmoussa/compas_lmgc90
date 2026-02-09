@@ -18,6 +18,7 @@ model = BlockModel.from_boxes(meshes)
 
 solver = Solver(model)
 solver.set_supports(z_threshold=0.4)
+solver.contact_law("IQS_CLB", 0.35)
 solver.preprocess()
 solver.run(nb_steps=100)  # Run a few steps to generate contacts
 
