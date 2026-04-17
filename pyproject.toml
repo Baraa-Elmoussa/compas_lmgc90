@@ -127,14 +127,16 @@ build-verbosity = 3
 test-requires = ["numpy", "compas", "compas_dem", "pytest"]
 test-command = "pytest {project}/tests || echo 'Tests skipped - requires visualization dependencies'"
 build-frontend = "pip"
-# Use manylinux2014 which has GCC 10 and gfortran
-manylinux-x86_64-image = "manylinux2014"
+# AlmaLinux 8 (glibc 2.28, GCC 12). Needed because scipy >=1.17 dropped manylinux2014
+# wheels — our runtime deps pull scipy, and we'd otherwise hit source builds during
+# the test phase. manylinux_2_28 has scipy wheels for cp311..cp314.
+manylinux-x86_64-image = "manylinux_2_28"
 # Skip unsupported platforms
-skip = ["*_i686", "*-musllinux_*", "*-win32", "pp*", "cp36-*", "cp37-*", "cp38-*"]
+skip = ["*_i686", "*-musllinux_*", "*-win32", "pp*", "cp36-*", "cp37-*", "cp38-*", "cp39-*", "cp310-*", "cp311-*"]
 
 # Linux: Install gfortran and LAPACK/BLAS in the manylinux container
 [tool.cibuildwheel.linux]
-before-all = "yum install -y gcc-gfortran openblas-devel lapack-devel"
+before-all = "dnf install -y gcc-gfortran openblas-devel lapack-devel"
 environment = { CMAKE_BUILD_PARALLEL_LEVEL = "2" }
 
 # macOS and Windows not supported
