@@ -61,6 +61,7 @@ for block in model.blocks():
 
 solver = Solver(model)  # Process model once
 solver.set_supports_from_model()  # Use supports already set in model
+solver.contact_law("IQS_CLB", 0.35)
 solver.preprocess()  # Setup LMGC90
 solver.run(nb_steps=100)  # Run simulation
 solver.finalize()

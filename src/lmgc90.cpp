@@ -2,7 +2,7 @@
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/string.h>
 #include <vector>
-#include <string>
+#include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <cmath>
@@ -123,7 +123,7 @@ public:
 
     void add_one_tact_behav(std::string name, std::string law, std::vector<double>& params) {
         char law_name[30] = { ' ' };
-        strncpy(law_name, law.c_str(), law.size()); 
+        std::strncpy(law_name, law.c_str(), law.size()); 
         lmgc90_add_one_tact_behav(name.data(), law_name, params.size(), const_cast<double*>(params.data()));
     }
 

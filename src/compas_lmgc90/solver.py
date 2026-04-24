@@ -107,7 +107,6 @@ class Solver:
             for i_dof, drv_vals in self.v_drvdof[i].items():
               evol = drv_vals.shape[0] == 2
               self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), True, evol)
-            vel_ddof = True
             for i_dof, drv_vals in self.f_drvdof[i].items():
               evol = drv_vals.shape[0] == 2
               self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), False, evol)

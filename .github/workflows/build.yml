@@ -14,6 +14,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       BLA_VENDOR: OpenBLAS
+      CC: gcc
+      CXX: g++
+      FC: gfortran
     strategy:
       matrix:
         os: [ubuntu-latest]  # Only Linux is supported
@@ -29,8 +32,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gfortran cmake libopenblas-dev liblapack-dev
-          
+          sudo apt-get install -y build-essential gfortran cmake libopenblas-dev liblapack-dev
+
       - name: Set up conda
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -49,7 +52,7 @@ jobs:
           conda config --add channels conda-forge
           conda config --add channels defaults
           conda config --set channel_priority strict
-          
+
       - uses: compas-dev/compas-actions.build@v4
         with:
           invoke_lint: true

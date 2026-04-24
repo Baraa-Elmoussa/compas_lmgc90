@@ -60,7 +60,7 @@ endif()
 FetchContent_Declare(lmgc90 GIT_REPOSITORY https://compas:glpat-to65i8oMIi3pD9miaj0nBW86MQp1OjduCA.01.0y1p3o8t8@git-xen.lmgc.univ-montp2.fr/lmgc90/lmgc90_dev.git
                             GIT_TAG compas_dev
 )
-#FetchContent_Declare(lmgc90 SOURCE_DIR /Users/mozul/WORK/LMGC90/sources/lmgc90_dev)
+#FetchContent_Declare(lmgc90 SOURCE_DIR /home/mozul/WORK/LMGC90/sources/lmgc90_dev)
 
 set( LMGC90_BUILD_ChiPy    OFF    CACHE INTERNAL "" FORCE)
 set( LMGC90_BUILD_PRE      OFF    CACHE INTERNAL "" FORCE)
