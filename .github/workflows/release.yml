@@ -98,6 +98,3 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        # Comment out the following line to publish to PyPI instead of TestPyPI
-        with:
-          repository-url: https://test.pypi.org/legacy/
