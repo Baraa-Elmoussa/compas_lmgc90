@@ -63,9 +63,7 @@ class Solver:
         # Handle density: single value or list
         if isinstance(density, (list, tuple)):
             if len(density) != len(self.trimeshes):
-                raise ValueError(
-                    f"Number of densities ({len(density)}) must match number of blocks ({len(self.trimeshes)})"
-                )
+                raise ValueError(f"Number of densities ({len(density)}) must match number of blocks ({len(self.trimeshes)})")
             self.densities = list(density)
         else:
             # Single density for all blocks
@@ -103,9 +101,7 @@ class Solver:
             nb_f = len(self.f_drvdof[i]) if i in self.f_drvdof.keys() else 0
             nb_v = len(self.v_drvdof[i]) if i in self.v_drvdof.keys() else 0
 
-            self.lmgc90.set_one_polyr(
-                mat, self.centroids[i], f_flat, v_flat, nb_v, nb_f
-            )
+            self.lmgc90.set_one_polyr(mat, self.centroids[i], f_flat, v_flat, nb_v, nb_f)
 
             for i_dof, drv_vals in self.v_drvdof[i].items():
                 evol = drv_vals.shape[0] == 2
@@ -119,9 +115,7 @@ class Solver:
         result_init = self.lmgc90.get_initial_state()
         for i in range(len(self.trimeshes)):
             self.init_coor.append(np.array(result_init.init_bodies[i]))
-            self.init_frame.append(
-                np.array(result_init.init_body_frames[i]).reshape(3, 3)
-            )
+            self.init_frame.append(np.array(result_init.init_body_frames[i]).reshape(3, 3))
             # Transform to global position
             self.trimeshes[i].translate(self.centroids[i])
 
@@ -219,9 +213,7 @@ class Solver:
         if value.shape[0] == 1:
             assert value.size == 6, "Value array must be of size 6"
         else:
-            assert value.shape[0] == 2 and value.shape[1] > 1, (
-                "Value array must be of shape [2xn], n>1"
-            )
+            assert value.shape[0] == 2 and value.shape[1] > 1, "Value array must be of shape [2xn], n>1"
 
         return value
 
@@ -455,9 +447,7 @@ class Solver:
                     contact_pt[2] + offset * normal[2],
                 ]
                 if Fn > 0:  # Compression
-                    contact_data["force_compression_lines"].append(
-                        Line(fn_start, fn_end)
-                    )
+                    contact_data["force_compression_lines"].append(Line(fn_start, fn_end))
                 else:  # Tension
                     contact_data["force_tension_lines"].append(Line(fn_start, fn_end))
 
@@ -520,9 +510,7 @@ class Solver:
                             avg_normal[2] += n[2] * w / total_weight
 
                         # Normalize average normal
-                        n_len = (
-                            avg_normal[0] ** 2 + avg_normal[1] ** 2 + avg_normal[2] ** 2
-                        ) ** 0.5
+                        n_len = (avg_normal[0] ** 2 + avg_normal[1] ** 2 + avg_normal[2] ** 2) ** 0.5
                         if n_len > 1e-9:
                             avg_normal = [
                                 avg_normal[0] / n_len,
@@ -542,9 +530,7 @@ class Solver:
                             resultant_pos[1] + avg_normal[1] * offset,
                             resultant_pos[2] + avg_normal[2] * offset,
                         ]
-                        contact_data["force_resultants"].append(
-                            Line(res_start, res_end)
-                        )
+                        contact_data["force_resultants"].append(Line(res_start, res_end))
 
         # Create polygons from grouped contact points (same body pair)
         for body_pair, indices in contact_groups.items():
