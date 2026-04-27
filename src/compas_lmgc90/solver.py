@@ -57,25 +57,26 @@ class Solver:
         self._model_to_lmgc90()
 
         # Drvdof management
-        self.v_drvdof = defaultdict( dict )
-        self.f_drvdof = defaultdict( dict )
+        self.v_drvdof = defaultdict(dict)
+        self.f_drvdof = defaultdict(dict)
 
         # Handle density: single value or list
         if isinstance(density, (list, tuple)):
             if len(density) != len(self.trimeshes):
-                raise ValueError(f"Number of densities ({len(density)}) must match number of blocks ({len(self.trimeshes)})")
+                raise ValueError(
+                    f"Number of densities ({len(density)}) must match number of blocks ({len(self.trimeshes)})"
+                )
             self.densities = list(density)
         else:
             # Single density for all blocks
             self.densities = [float(density)] * len(self.trimeshes)
 
         # In debug mode, the OUTBOX directory must exist...
-        outbox = Path('./OUTBOX')
+        outbox = Path("./OUTBOX")
         outbox.mkdir(exist_ok=True)
         # Create LMGC90 solver instance
         self.lmgc90 = _lmgc90.LMGC90Solver()
         self.lmgc90.initialize(dt, theta, debug)
-
 
     def _model_to_lmgc90(self):
         """Extract meshes and centroids from model."""
@@ -96,27 +97,31 @@ class Solver:
             v, f = mesh.to_vertices_and_faces(True)
             v_flat = [item for sublist in v for item in sublist]
             f_flat = [item + 1 for sublist in f for item in sublist]  # 1-indexed
-            mat = self.d2n[ self.densities[i] ]
+            mat = self.d2n[self.densities[i]]
             # driven dof managment
 
             nb_f = len(self.f_drvdof[i]) if i in self.f_drvdof.keys() else 0
             nb_v = len(self.v_drvdof[i]) if i in self.v_drvdof.keys() else 0
 
-            self.lmgc90.set_one_polyr(mat, self.centroids[i], f_flat, v_flat, nb_v, nb_f)
+            self.lmgc90.set_one_polyr(
+                mat, self.centroids[i], f_flat, v_flat, nb_v, nb_f
+            )
 
             for i_dof, drv_vals in self.v_drvdof[i].items():
-              evol = drv_vals.shape[0] == 2
-              self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), True, evol)
+                evol = drv_vals.shape[0] == 2
+                self.lmgc90.set_drvdof(i + 1, i_dof, drv_vals.ravel(), True, evol)
             for i_dof, drv_vals in self.f_drvdof[i].items():
-              evol = drv_vals.shape[0] == 2
-              self.lmgc90.set_drvdof(i+1, i_dof, drv_vals.ravel(), False, evol)
+                evol = drv_vals.shape[0] == 2
+                self.lmgc90.set_drvdof(i + 1, i_dof, drv_vals.ravel(), False, evol)
 
     def _get_initial_state(self):
         """Retrieve and store initial state from LMGC90."""
         result_init = self.lmgc90.get_initial_state()
         for i in range(len(self.trimeshes)):
             self.init_coor.append(np.array(result_init.init_bodies[i]))
-            self.init_frame.append(np.array(result_init.init_body_frames[i]).reshape(3, 3))
+            self.init_frame.append(
+                np.array(result_init.init_body_frames[i]).reshape(3, 3)
+            )
             # Transform to global position
             self.trimeshes[i].translate(self.centroids[i])
 
@@ -171,10 +176,10 @@ class Solver:
             self.supports.append(centroid[2] < z_threshold)
 
         for i, s in enumerate(self.supports):
-          if not s:
-            continue
-          value = np.zeros([6])
-          self.v_drvdof[i] = { i_dof:value for i_dof in range(1,7) }
+            if not s:
+                continue
+            value = np.zeros([6])
+            self.v_drvdof[i] = {i_dof: value for i_dof in range(1, 7)}
 
         return self
 
@@ -192,34 +197,35 @@ class Solver:
             self.supports.append(getattr(element, "is_support", False))
 
         for i, s in enumerate(self.supports):
-          if not s:
-            continue
-          value = np.zeros([6])
-          self.v_drvdof[i] = { i_dof:value for i_dof in range(1,7) }
+            if not s:
+                continue
+            value = np.zeros([6])
+            self.v_drvdof[i] = {i_dof: value for i_dof in range(1, 7)}
         return self
 
     def _drvdof_check(self, value):
-
         # First, attempt to make a numpy array
         if not isinstance(value, np.ndarray):
-          if isinstance(value, float):
-            v = np.zeros( [1,6] )
-            v[0,0] = value
-            v[0,4] = 1.e0
-          else:
-            v = np.array( value )
-          value = v
+            if isinstance(value, float):
+                v = np.zeros([1, 6])
+                v[0, 0] = value
+                v[0, 4] = 1.0e0
+            else:
+                v = np.array(value)
+            value = v
 
         # Second, check that it is usable
         assert value.ndim == 2, "Value array as wrong dimensions"
         if value.shape[0] == 1:
-          assert value.size == 6, "Value array must be of size 6"
+            assert value.size == 6, "Value array must be of size 6"
         else:
-          assert value.shape[0] == 2 and value.shape[1] > 1, "Value array must be of shape [2xn], n>1"
+            assert value.shape[0] == 2 and value.shape[1] > 1, (
+                "Value array must be of shape [2xn], n>1"
+            )
 
         return value
 
-    def apply_velocity(self, block_index, component, value=0.):
+    def apply_velocity(self, block_index, component, value=0.0):
         """Set an imposed velocity on a block
 
         Parameters
@@ -236,11 +242,11 @@ class Solver:
               at different times.
         """
 
-        cmp_s2i = { 'Vx':1, 'Vy':2, 'Vz':3, 'Rx':4, 'Ry':5, 'Rz':6 }
+        cmp_s2i = {"Vx": 1, "Vy": 2, "Vz": 3, "Rx": 4, "Ry": 5, "Rz": 6}
 
         self.v_drvdof[block_index][cmp_s2i[component]] = self._drvdof_check(value)
 
-    def apply_force(self, block_index, component, value=0.):
+    def apply_force(self, block_index, component, value=0.0):
         """Add an external force on a block
 
         Parameters
@@ -257,7 +263,7 @@ class Solver:
               at different times.
         """
 
-        cmp_s2i = { 'Fx':1, 'Fy':2, 'Fz':3, 'Mx':4, 'My':5, 'Mz':6 }
+        cmp_s2i = {"Fx": 1, "Fy": 2, "Fz": 3, "Mx": 4, "My": 5, "Mz": 6}
 
         self.f_drvdof[block_index][cmp_s2i[component]] = self._drvdof_check(value)
 
@@ -276,7 +282,6 @@ class Solver:
         coeffs = [coeffs] if isinstance(coeffs, float) else coeffs
         self.lmgc90.add_one_tact_behav(name, law, coeffs)
 
-
     def preprocess(self):
         """Initialize LMGC90 simulation.
 
@@ -289,8 +294,8 @@ class Solver:
         # density to name dic generation
         d2n = np.unique(self.densities)
         if len(d2n) > 9999:
-          raise ValueError("Too many materials for LMGC90")
-        self.d2n = { d : f"s{i+1:0>4}" for i, d in enumerate(d2n) }
+            raise ValueError("Too many materials for LMGC90")
+        self.d2n = {d: f"s{i + 1:0>4}" for i, d in enumerate(d2n)}
 
         self.lmgc90.set_materials(np.fromiter(self.d2n.keys(), dtype=float))
         self.lmgc90.set_see_tables()
@@ -363,8 +368,8 @@ class Solver:
 
         """
 
-        result = self.lmgc90.compute_one_step()
-        self._update_meshes(result)
+        result = self.last_result
+        # self._update_meshes(result)
 
         contact_data = {
             "contact_points": [],
@@ -419,37 +424,71 @@ class Solver:
             contact_data["status"].append(status)
 
             # Create line for normal vector visualization
-            normal_end = [contact_pt[0] + normal[0] * scale_normal, contact_pt[1] + normal[1] * scale_normal, contact_pt[2] + normal[2] * scale_normal]
+            normal_end = [
+                contact_pt[0] + normal[0] * scale_normal,
+                contact_pt[1] + normal[1] * scale_normal,
+                contact_pt[2] + normal[2] * scale_normal,
+            ]
             contact_data["normal_lines"].append(Line(contact_pt, normal_end))
 
             # Create line for total force visualization
             if force_mag > 1e-6:
-                force_end = [contact_pt[0] + force[0] * scale_force, contact_pt[1] + force[1] * scale_force, contact_pt[2] + force[2] * scale_force]
+                force_end = [
+                    contact_pt[0] + force[0] * scale_force,
+                    contact_pt[1] + force[1] * scale_force,
+                    contact_pt[2] + force[2] * scale_force,
+                ]
                 contact_data["force_lines"].append(Line(contact_pt, force_end))
 
             # Create lines for force components (centered at contact point)
             # Normal force - separate compression (Fn > 0) and tension (Fn < 0)
             if abs(Fn) > 1e-6:
                 offset = Fn * scale_force / 2.0
-                fn_start = [contact_pt[0] - offset * normal[0], contact_pt[1] - offset * normal[1], contact_pt[2] - offset * normal[2]]
-                fn_end = [contact_pt[0] + offset * normal[0], contact_pt[1] + offset * normal[1], contact_pt[2] + offset * normal[2]]
+                fn_start = [
+                    contact_pt[0] - offset * normal[0],
+                    contact_pt[1] - offset * normal[1],
+                    contact_pt[2] - offset * normal[2],
+                ]
+                fn_end = [
+                    contact_pt[0] + offset * normal[0],
+                    contact_pt[1] + offset * normal[1],
+                    contact_pt[2] + offset * normal[2],
+                ]
                 if Fn > 0:  # Compression
-                    contact_data["force_compression_lines"].append(Line(fn_start, fn_end))
+                    contact_data["force_compression_lines"].append(
+                        Line(fn_start, fn_end)
+                    )
                 else:  # Tension
                     contact_data["force_tension_lines"].append(Line(fn_start, fn_end))
 
             # Tangent force 1 (green)
             if abs(Ft) > 1e-6:
                 offset = Ft * scale_force / 2.0
-                ft_start = [contact_pt[0] - offset * tangent1[0], contact_pt[1] - offset * tangent1[1], contact_pt[2] - offset * tangent1[2]]
-                ft_end = [contact_pt[0] + offset * tangent1[0], contact_pt[1] + offset * tangent1[1], contact_pt[2] + offset * tangent1[2]]
+                ft_start = [
+                    contact_pt[0] - offset * tangent1[0],
+                    contact_pt[1] - offset * tangent1[1],
+                    contact_pt[2] - offset * tangent1[2],
+                ]
+                ft_end = [
+                    contact_pt[0] + offset * tangent1[0],
+                    contact_pt[1] + offset * tangent1[1],
+                    contact_pt[2] + offset * tangent1[2],
+                ]
                 contact_data["force_tangent1_lines"].append(Line(ft_start, ft_end))
 
             # Tangent force 2 / shear (cyan)
             if abs(Fs) > 1e-6:
                 offset = Fs * scale_force / 2.0
-                fs_start = [contact_pt[0] - offset * tangent2[0], contact_pt[1] - offset * tangent2[1], contact_pt[2] - offset * tangent2[2]]
-                fs_end = [contact_pt[0] + offset * tangent2[0], contact_pt[1] + offset * tangent2[1], contact_pt[2] + offset * tangent2[2]]
+                fs_start = [
+                    contact_pt[0] - offset * tangent2[0],
+                    contact_pt[1] - offset * tangent2[1],
+                    contact_pt[2] - offset * tangent2[2],
+                ]
+                fs_end = [
+                    contact_pt[0] + offset * tangent2[0],
+                    contact_pt[1] + offset * tangent2[1],
+                    contact_pt[2] + offset * tangent2[2],
+                ]
                 contact_data["force_tangent2_lines"].append(Line(fs_start, fs_end))
 
         # Compute resultant forces for each contact polygon
@@ -481,15 +520,31 @@ class Solver:
                             avg_normal[2] += n[2] * w / total_weight
 
                         # Normalize average normal
-                        n_len = (avg_normal[0] ** 2 + avg_normal[1] ** 2 + avg_normal[2] ** 2) ** 0.5
+                        n_len = (
+                            avg_normal[0] ** 2 + avg_normal[1] ** 2 + avg_normal[2] ** 2
+                        ) ** 0.5
                         if n_len > 1e-9:
-                            avg_normal = [avg_normal[0] / n_len, avg_normal[1] / n_len, avg_normal[2] / n_len]
+                            avg_normal = [
+                                avg_normal[0] / n_len,
+                                avg_normal[1] / n_len,
+                                avg_normal[2] / n_len,
+                            ]
 
                         # Create centered line for normal resultant
                         offset = sum_fn * scale_force / 2.0
-                        res_start = [resultant_pos[0] - avg_normal[0] * offset, resultant_pos[1] - avg_normal[1] * offset, resultant_pos[2] - avg_normal[2] * offset]
-                        res_end = [resultant_pos[0] + avg_normal[0] * offset, resultant_pos[1] + avg_normal[1] * offset, resultant_pos[2] + avg_normal[2] * offset]
-                        contact_data["force_resultants"].append(Line(res_start, res_end))
+                        res_start = [
+                            resultant_pos[0] - avg_normal[0] * offset,
+                            resultant_pos[1] - avg_normal[1] * offset,
+                            resultant_pos[2] - avg_normal[2] * offset,
+                        ]
+                        res_end = [
+                            resultant_pos[0] + avg_normal[0] * offset,
+                            resultant_pos[1] + avg_normal[1] * offset,
+                            resultant_pos[2] + avg_normal[2] * offset,
+                        ]
+                        contact_data["force_resultants"].append(
+                            Line(res_start, res_end)
+                        )
 
         # Create polygons from grouped contact points (same body pair)
         for body_pair, indices in contact_groups.items():
