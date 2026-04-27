@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- exclude "external", "venv", "build", "OUTBOX", "temp" due to PYPI limits.
+
 ### Removed
 
 ## [0.1.4] 2026-04-27
