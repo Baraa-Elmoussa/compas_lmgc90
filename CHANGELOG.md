@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## Unreleased
+
+### Changed
+
+- Contact force resultants now include tangential force components in addition
+  to normal force components.
+
+
 ## [0.1.9] 2026-05-04
 
 ### Added
@@ -27,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency, so nothing libomp-related is bundled anymore.
 
 ### Removed
+
 
 - Homebrew OpenBLAS detection block from `CMakeLists.txt` (was forcing
   `BLAS_LIBRARIES`/`LAPACK_LIBRARIES` to the keg path before LMGC90's
@@ -375,4 +384,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `get_post_processing_data` now uses the stored last result instead of triggering a new solver step
 
 ### Removed
-
